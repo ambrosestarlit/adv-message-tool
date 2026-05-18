@@ -84,6 +84,27 @@ button.danger {
   pointer-events: none;
 }
 
+.asset-status-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.asset-status {
+  min-height: 2.45rem;
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(199, 217, 232, 0.9);
+  border-radius: 12px;
+  background: rgba(245, 251, 255, 0.92);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  word-break: break-all;
+}
+
 .app-header {
   display: flex;
   align-items: center;
@@ -536,6 +557,27 @@ body {
 
 body {
   overflow: hidden;
+}
+
+.asset-status-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.asset-status {
+  min-height: 2.45rem;
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(199, 217, 232, 0.9);
+  border-radius: 12px;
+  background: rgba(245, 251, 255, 0.92);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  word-break: break-all;
 }
 
 .app-header {

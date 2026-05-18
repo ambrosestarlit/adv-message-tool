@@ -49,6 +49,8 @@
 
   const audioInput = $("#audioInput");
   const audioPlayer = $("#audioPlayer");
+  const audioFileInfo = $("#audioFileInfo");
+  const clearAudioBtn = $("#clearAudioBtn");
   const windowImageInput = $("#windowImageInput");
   const clearWindowImageBtn = $("#clearWindowImageBtn");
 
@@ -133,6 +135,9 @@
     lastCharacterId: localStorage.getItem("adv-message-tool-last-character") || "char_default",
     windowImageDataUrl: null,
     windowImage: null,
+    audioDataUrl: null,
+    audioFileName: "",
+    audioMimeType: "",
     audioObjectUrl: null,
     settings: defaultSettings()
   };
@@ -241,6 +246,28 @@
       img.onerror = reject;
       img.src = dataUrl;
     });
+  }
+
+  function setAudioFromDataUrl(dataUrl, fileName = "", mimeType = "") {
+    state.audioDataUrl = dataUrl || null;
+    state.audioFileName = fileName || "";
+    state.audioMimeType = mimeType || "";
+
+    if (state.audioObjectUrl) {
+      URL.revokeObjectURL(state.audioObjectUrl);
+      state.audioObjectUrl = null;
+    }
+
+    if (state.audioDataUrl) {
+      audioPlayer.src = state.audioDataUrl;
+      audioPlayer.load();
+      audioFileInfo.textContent = `保存済み音声：${state.audioFileName || "名称未設定"}`;
+    } else {
+      audioPlayer.removeAttribute("src");
+      audioPlayer.load();
+      audioFileInfo.textContent = "保存済み音声なし";
+      previewTimeRange.max = Math.max(30, Number(exportEndInput.value) || 0);
+    }
   }
 
   function downloadBlob(blob, filename) {
@@ -709,7 +736,10 @@
       lines: state.lines,
       settings: state.settings,
       lastCharacterId: state.lastCharacterId,
-      windowImageDataUrl: state.windowImageDataUrl
+      windowImageDataUrl: state.windowImageDataUrl,
+      audioDataUrl: state.audioDataUrl,
+      audioFileName: state.audioFileName,
+      audioMimeType: state.audioMimeType
     };
   }
 
@@ -731,6 +761,8 @@
     state.settings = settings;
     state.windowImageDataUrl = data.windowImageDataUrl || null;
     state.windowImage = await loadImageFromDataUrl(state.windowImageDataUrl);
+    setAudioFromDataUrl(data.audioDataUrl || null, data.audioFileName || "", data.audioMimeType || "");
+    audioInput.value = "";
 
     populateCharacterSelect();
     renderCharacterList();
@@ -849,13 +881,28 @@
   }
 
   function bindEvents() {
-    audioInput.addEventListener("change", () => {
+    audioInput.addEventListener("change", async () => {
       const file = audioInput.files?.[0];
       if (!file) return;
-      if (state.audioObjectUrl) URL.revokeObjectURL(state.audioObjectUrl);
-      state.audioObjectUrl = URL.createObjectURL(file);
-      audioPlayer.src = state.audioObjectUrl;
-      audioPlayer.load();
+
+      try {
+        audioFileInfo.textContent = "音声を保存用データへ変換中...";
+        const dataUrl = await readFileAsDataUrl(file);
+        setAudioFromDataUrl(dataUrl, file.name, file.type || "audio/*");
+      } catch (error) {
+        console.error(error);
+        alert("音声ファイルの読み込みに失敗しました。");
+        audioFileInfo.textContent = state.audioDataUrl
+          ? `保存済み音声：${state.audioFileName || "名称未設定"}`
+          : "保存済み音声なし";
+      }
+    });
+
+    clearAudioBtn.addEventListener("click", () => {
+      audioInput.value = "";
+      setAudioFromDataUrl(null);
+      updatePreviewMax();
+      renderAt(currentPreviewTime());
     });
 
     audioPlayer.addEventListener("loadedmetadata", () => {
@@ -960,7 +1007,7 @@
         alert("キャッシュへ保存しました。");
       } catch (error) {
         console.error(error);
-        alert("キャッシュ保存に失敗しました。画像が大きすぎる場合はJSON保存を使用してください。");
+        alert("キャッシュ保存に失敗しました。音声や画像が大きすぎる場合はJSON保存、または素材を軽くしてから保存してください。");
       }
     });
 
@@ -993,6 +1040,7 @@
     renderLineList();
     renderSettingsPanel();
     bindEvents();
+    setAudioFromDataUrl(state.audioDataUrl, state.audioFileName, state.audioMimeType);
     renderAt(0);
   }
 
