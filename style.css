@@ -345,14 +345,7 @@ audio {
   overflow: auto;
   display: grid;
   place-items: start center;
-  background-color: #d8e8f3;
-  background-image:
-    linear-gradient(45deg, rgba(255,255,255,0.72) 25%, transparent 25%),
-    linear-gradient(-45deg, rgba(255,255,255,0.72) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.72) 75%),
-    linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.72) 75%);
-  background-size: 32px 32px;
-  background-position: 0 0, 0 16px, 16px -16px, -16px 0px;
+  background: #eefaf6;
 }
 
 #previewCanvas {
@@ -390,11 +383,45 @@ audio {
   }
 }
 
-/* 2026-05: プレビュー下セリフ入力バー */
+/* 2026-05: プレビュー下音声プレイヤー＋セリフ入力バー */
 .canvas-wrap {
   align-content: start;
   justify-items: center;
   gap: 1rem;
+}
+
+
+.preview-audio-panel {
+  width: min(100%, 1100px);
+  border: 1px solid rgba(167, 197, 219, 0.82);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 12px 28px rgba(24, 58, 82, 0.13);
+  padding: 0.78rem 0.85rem;
+  backdrop-filter: blur(10px);
+}
+
+.preview-audio-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.45rem;
+}
+
+.preview-audio-head strong {
+  font-size: 0.92rem;
+  color: #24475e;
+}
+
+.preview-audio-head span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.preview-audio-panel audio {
+  display: block;
 }
 
 .quick-line-panel {
@@ -497,5 +524,243 @@ audio {
   .quick-settings,
   .quick-action-buttons {
     grid-column: auto;
+  }
+}
+
+
+/* 2026-05: 右側をスクロールなしで作業しやすくするコンパクトプレビュー */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
+.app-header {
+  min-height: 64px;
+  padding: 0.72rem 1rem;
+}
+
+.app-header h1 {
+  font-size: 1.08rem;
+}
+
+.app-header p {
+  font-size: 0.78rem;
+}
+
+.header-actions button,
+.header-actions .file-button {
+  padding: 0.48rem 0.66rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+.app-layout {
+  height: calc(100vh - 64px);
+  min-height: 0;
+  overflow: hidden;
+  grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.controls-panel {
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.65rem;
+}
+
+.controls-panel details {
+  margin-bottom: 0.55rem;
+  border-radius: 14px;
+}
+
+.controls-panel summary {
+  padding: 0.62rem 0.78rem;
+  font-size: 0.9rem;
+}
+
+.control-stack {
+  gap: 0.58rem;
+  padding: 0.68rem;
+}
+
+.preview-panel {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.preview-toolbar {
+  min-height: 42px;
+  padding: 0.55rem 0.75rem;
+}
+
+.preview-toolbar span,
+.active-line-info {
+  font-size: 0.78rem;
+}
+
+.canvas-wrap {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.62rem;
+  gap: 0.55rem;
+  align-content: start;
+  place-items: start center;
+}
+
+#previewCanvas {
+  width: min(100%, 920px, calc((100vh - 21rem) * 1.777777));
+  max-height: calc(100vh - 21rem);
+  min-width: 520px;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(24, 58, 82, 0.2);
+}
+
+.preview-audio-panel,
+.quick-line-panel {
+  width: min(100%, 920px, calc((100vh - 21rem) * 1.777777));
+  min-width: 520px;
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(24, 58, 82, 0.12);
+}
+
+.preview-audio-panel {
+  padding: 0.48rem 0.6rem;
+}
+
+.preview-audio-head {
+  margin-bottom: 0.28rem;
+}
+
+.preview-audio-head strong {
+  font-size: 0.82rem;
+}
+
+.preview-audio-head span {
+  font-size: 0.72rem;
+}
+
+.preview-audio-panel audio {
+  height: 32px;
+}
+
+.quick-line-panel {
+  padding: 0.58rem;
+}
+
+.quick-line-grid {
+  grid-template-columns: minmax(118px, 0.65fr) minmax(260px, 1.8fr) minmax(275px, 1.3fr) minmax(104px, auto);
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.quick-line-panel .field {
+  gap: 0.22rem;
+  font-size: 0.78rem;
+}
+
+.quick-line-panel .field input,
+.quick-line-panel .field textarea,
+.quick-line-panel .field select {
+  padding: 0.46rem 0.55rem;
+  border-radius: 10px;
+}
+
+.quick-line-panel textarea {
+  min-height: 3.2rem;
+  height: 3.2rem;
+}
+
+.quick-settings {
+  border-radius: 12px;
+}
+
+.quick-settings summary {
+  padding: 0.38rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.quick-settings-body {
+  gap: 0.38rem;
+  padding: 0.48rem;
+}
+
+.quick-number-grid {
+  gap: 0.38rem;
+}
+
+.quick-time-buttons {
+  gap: 0.35rem;
+}
+
+.quick-time-buttons button {
+  padding: 0.4rem 0.46rem;
+  border-radius: 9px;
+  font-size: 0.74rem;
+}
+
+.quick-action-buttons {
+  gap: 0.38rem;
+  min-width: 6.6rem;
+}
+
+.quick-action-buttons button {
+  padding: 0.5rem 0.55rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 1280px) {
+  .app-layout {
+    grid-template-columns: minmax(310px, 360px) minmax(0, 1fr);
+  }
+
+  #previewCanvas,
+  .preview-audio-panel,
+  .quick-line-panel {
+    width: min(100%, 780px, calc((100vh - 21rem) * 1.777777));
+  }
+
+  .quick-line-grid {
+    grid-template-columns: minmax(108px, 0.6fr) minmax(220px, 1.65fr) minmax(245px, 1.25fr) minmax(96px, auto);
+  }
+}
+
+@media (max-width: 1080px) {
+  body {
+    overflow: auto;
+  }
+
+  .app-layout {
+    height: auto;
+    overflow: visible;
+    grid-template-columns: 1fr;
+  }
+
+  .preview-panel,
+  .controls-panel {
+    height: auto;
+    overflow: visible;
+  }
+
+  .canvas-wrap {
+    overflow: auto;
+  }
+
+  #previewCanvas,
+  .preview-audio-panel,
+  .quick-line-panel {
+    width: min(100%, 920px);
+    min-width: 0;
+    max-height: none;
   }
 }

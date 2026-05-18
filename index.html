@@ -35,7 +35,6 @@
             <span>音声ファイル</span>
             <input id="audioInput" type="file" accept="audio/*" />
           </label>
-          <audio id="audioPlayer" controls></audio>
 
           <label class="field">
             <span>メッセージウィンドウ画像</span>
@@ -123,6 +122,14 @@
       </div>
       <div class="canvas-wrap">
         <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+
+        <div class="preview-audio-panel" aria-label="音声プレビュー">
+          <div class="preview-audio-head">
+            <strong>音声プレビュー</strong>
+            <span>読み込んだ音声の再生位置に合わせて表示確認</span>
+          </div>
+          <audio id="audioPlayer" controls></audio>
+        </div>
 
         <div class="quick-line-panel" aria-label="セリフ入力">
           <div class="quick-line-grid">
