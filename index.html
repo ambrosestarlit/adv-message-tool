@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ADV Message Movie Tool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho:wght@400;700&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho:wght@400;700&family=Dela+Gothic+One&family=DotGothic16&family=Hina+Mincho&family=IBM+Plex+Sans+JP:wght@400;500;700&family=Klee+One:wght@400;600&family=Kiwi+Maru:wght@400;500&family=Kosugi&family=Kosugi+Maru&family=M+PLUS+1:wght@400;500;700&family=M+PLUS+1p:wght@400;500;700&family=M+PLUS+2:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;600;700&family=Rampart+One&family=Reggae+One&family=Sawarabi+Gothic&family=Sawarabi+Mincho&family=Shippori+Mincho:wght@400;600;700&family=Stick&family=Yomogi&family=Yuji+Boku&family=Yuji+Mai&family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&family=Zen+Old+Mincho:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>ADV Message Movie Tool</h1>
+      <p>透過メッセージウィンドウ＋テキストアニメーション連番PNG生成</p>
+    </div>
+    <div class="header-actions">
+      <button id="saveJsonBtn" type="button">JSON保存</button>
+      <label class="file-button">
+        JSON読込
+        <input id="loadJsonInput" type="file" accept="application/json,.json" />
+      </label>
+      <button id="saveCacheBtn" type="button">キャッシュ保存</button>
+      <button id="loadCacheBtn" type="button">キャッシュ復元</button>
+    </div>
+  </header>
+
+  <main class="app-layout">
+    <aside class="panel controls-panel">
+      <details open>
+        <summary>素材</summary>
+        <div class="control-stack">
+          <label class="field">
+            <span>音声ファイル</span>
+            <input id="audioInput" type="file" accept="audio/*" />
+          </label>
+          <audio id="audioPlayer" controls></audio>
+
+          <label class="field">
+            <span>メッセージウィンドウ画像</span>
+            <input id="windowImageInput" type="file" accept="image/*" />
+          </label>
+          <div class="button-row">
+            <button id="clearWindowImageBtn" type="button">画像を解除</button>
+          </div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>キャラクター登録</summary>
+        <div class="control-stack">
+          <div class="inline-form">
+            <input id="characterNameInput" type="text" placeholder="キャラクター名" />
+            <button id="addCharacterBtn" type="button">追加</button>
+          </div>
+          <div id="characterList" class="character-list"></div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>セリフ一覧</summary>
+        <div class="control-stack">
+          <div id="lineList" class="line-list"></div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>プレビュー</summary>
+        <div class="control-stack">
+          <label class="field">
+            <span>プレビュー秒</span>
+            <input id="previewTimeInput" type="number" min="0" step="0.01" value="0" />
+          </label>
+          <input id="previewTimeRange" type="range" min="0" max="30" step="0.01" value="0" />
+          <div class="button-row">
+            <button id="renderPreviewBtn" type="button">プレビュー更新</button>
+          </div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>表示設定</summary>
+        <div id="settingsPanel" class="control-stack"></div>
+      </details>
+
+      <details open>
+        <summary>書き出し</summary>
+        <div class="control-stack">
+          <div class="grid-2">
+            <label class="field">
+              <span>FPS</span>
+              <input id="exportFpsInput" type="number" min="1" max="60" step="1" value="30" />
+            </label>
+            <label class="field">
+              <span>ファイル名接頭辞</span>
+              <input id="exportPrefixInput" type="text" value="frame" />
+            </label>
+          </div>
+          <div class="grid-2">
+            <label class="field">
+              <span>書き出し開始秒</span>
+              <input id="exportStartInput" type="number" min="0" step="0.01" value="0" />
+            </label>
+            <label class="field">
+              <span>書き出し終了秒</span>
+              <input id="exportEndInput" type="number" min="0" step="0.01" value="3" />
+            </label>
+          </div>
+          <button id="exportZipBtn" type="button" class="primary">透過PNG連番ZIPを書き出し</button>
+          <div id="exportProgress" class="progress-text"></div>
+        </div>
+      </details>
+    </aside>
+
+    <section class="preview-panel">
+      <div class="preview-toolbar">
+        <div>
+          <strong>Canvas</strong>
+          <span>1920 × 1080 / transparent</span>
+        </div>
+        <div id="activeLineInfo" class="active-line-info">表示中のセリフなし</div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+
+        <div class="quick-line-panel" aria-label="セリフ入力">
+          <div class="quick-line-grid">
+            <label class="field quick-character-field">
+              <span>名前選択</span>
+              <select id="lineCharacterSelect"></select>
+            </label>
+
+            <label class="field quick-text-field">
+              <span>セリフ入力</span>
+              <textarea id="lineTextInput" rows="2" placeholder="表示したいセリフを入力"></textarea>
+            </label>
+
+            <details class="quick-settings" open>
+              <summary>設定項目</summary>
+              <div class="quick-settings-body">
+                <div class="quick-number-grid">
+                  <label class="field">
+                    <span>開始秒</span>
+                    <input id="lineStartInput" type="number" min="0" step="0.01" value="0" />
+                  </label>
+                  <label class="field">
+                    <span>終了秒</span>
+                    <input id="lineEndInput" type="number" min="0" step="0.01" value="3" />
+                  </label>
+                  <label class="field">
+                    <span>文字送り/秒</span>
+                    <input id="lineCpsInput" type="number" min="1" step="1" value="24" />
+                  </label>
+                </div>
+                <div class="button-row quick-time-buttons">
+                  <button id="setStartFromAudioBtn" type="button">現在時刻を開始へ</button>
+                  <button id="setEndFromAudioBtn" type="button">現在時刻を終了へ</button>
+                </div>
+              </div>
+            </details>
+
+            <div class="quick-action-buttons">
+              <button id="addOrUpdateLineBtn" type="button" class="primary">セリフ追加</button>
+              <button id="cancelEditLineBtn" type="button">編集解除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
