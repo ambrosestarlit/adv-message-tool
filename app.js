@@ -103,6 +103,11 @@
   const exportZipBtn = $("#exportZipBtn");
   const exportProgress = $("#exportProgress");
 
+  const helpBtn = $("#helpBtn");
+  const helpModal = $("#helpModal");
+  const helpCloseBtn = $("#helpCloseBtn");
+  const helpCloseFooterBtn = $("#helpCloseFooterBtn");
+
   const defaultSettings = () => ({
     window: {
       x: 120,
@@ -1467,7 +1472,34 @@
     }
   }
 
+
+  function openHelpModal() {
+    if (!helpModal) return;
+    helpModal.classList.remove("hidden");
+    document.body.classList.add("modal-open");
+    helpCloseBtn?.focus();
+  }
+
+  function closeHelpModal() {
+    if (!helpModal) return;
+    helpModal.classList.add("hidden");
+    document.body.classList.remove("modal-open");
+    helpBtn?.focus();
+  }
+
   function bindEvents() {
+    helpBtn?.addEventListener("click", openHelpModal);
+    helpCloseBtn?.addEventListener("click", closeHelpModal);
+    helpCloseFooterBtn?.addEventListener("click", closeHelpModal);
+    helpModal?.addEventListener("click", (event) => {
+      if (event.target === helpModal) closeHelpModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && helpModal && !helpModal.classList.contains("hidden")) {
+        closeHelpModal();
+      }
+    });
+
     sceneSelect.addEventListener("change", () => {
       captureCurrentScene();
       const nextScene = state.scenes.find((scene) => scene.id === sceneSelect.value);

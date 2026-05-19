@@ -23,6 +23,7 @@
       </label>
       <button id="saveCacheBtn" type="button">キャッシュ保存</button>
       <button id="loadCacheBtn" type="button">キャッシュ復元</button>
+      <button id="helpBtn" type="button">取扱説明</button>
     </div>
   </header>
 
@@ -220,6 +221,95 @@
       </div>
     </section>
   </main>
+
+  <div id="helpModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+    <div class="manual-modal">
+      <div class="manual-modal-head">
+        <div>
+          <h2 id="helpModalTitle">取扱説明</h2>
+          <p>ADV Message Movie Tool 現行版の使い方</p>
+        </div>
+        <button id="helpCloseBtn" type="button" class="modal-close-button" aria-label="取扱説明を閉じる">×</button>
+      </div>
+
+      <div class="manual-modal-body">
+        <section>
+          <h3>このツールでできること</h3>
+          <p>音声に合わせて、ADVノベルゲーム風のメッセージウィンドウ・キャラクター名・セリフ本文を表示し、背景透過の連番PNGをZIPで書き出せます。キャンバスサイズは1920×1080固定です。</p>
+        </section>
+
+        <section>
+          <h3>基本の流れ</h3>
+          <ol>
+            <li>「シーン管理」でシーンを作成または選択します。</li>
+            <li>「素材」から音声ファイルとメッセージウィンドウ画像を読み込みます。</li>
+            <li>「キャラクター登録」で名前を追加します。</li>
+            <li>右側のプレビュー下にある入力パネルで、名前・セリフ・開始秒・終了秒・文字送り速度を設定して「セリフ追加」を押します。</li>
+            <li>音声プレビューで再生位置を確認しながら、必要に応じてセリフを編集します。</li>
+            <li>「書き出し」から現在選択中のシーンを透過PNG連番ZIPとして書き出します。</li>
+          </ol>
+        </section>
+
+        <section>
+          <h3>シーン管理</h3>
+          <p>1プロジェクト内に複数シーンを作成できます。シーンごとに音声とセリフ一覧が保存されます。キャラクター、メッセージウィンドウ画像、表示設定、台詞ボタンはプロジェクト共通です。</p>
+          <ul>
+            <li>追加：新しい空のシーンを作成します。</li>
+            <li>名前変更：現在のシーン名を変更します。</li>
+            <li>複製：現在のシーンの音声とセリフをコピーして新規シーンを作成します。</li>
+            <li>削除：現在のシーンを削除します。最低1つのシーンは残ります。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>台詞txt読み込みと台詞ボタン</h3>
+          <p>txtを読み込むと、1行ごとのセリフをキャラクター別のボタンとして登録できます。未登録のキャラクター名は自動追加されます。</p>
+          <pre>001 キャラ名：おはよう
+キャラ名「今日はいい天気だね」
+キャラ名(小声で呼びかける)</pre>
+          <p>対応形式は「キャラ名：」「キャラ名「」「キャラ名(」です。先頭に半角数字3桁＋半角空白がある場合、その番号がボタン上に表示されます。ボタンをクリックすると、その台詞が現在時刻にセリフとして追加され、追加済みのボタンはグレーアウトします。もう一度クリックすると挿入をキャンセルできます。</p>
+        </section>
+
+        <section>
+          <h3>セリフ入力</h3>
+          <ul>
+            <li>名前選択：登録済みキャラクターから選びます。最後に選んだ名前は維持されます。</li>
+            <li>セリフ入力：表示したい本文を入力します。</li>
+            <li>開始秒・終了秒：セリフを表示する時間です。</li>
+            <li>文字送り/秒：本文アニメーション速度です。数値入力またはスライダーでリアルタイム確認できます。</li>
+            <li>現在時刻を開始へ／終了へ：音声プレイヤーの現在位置を入力欄へ反映します。</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>表示設定</h3>
+          <p>左側の「表示設定」から、メッセージウィンドウ画像の位置・サイズ、名前文字、本文文字、折り返し幅、行間、最大行数、文字色、フチ、影、フォントを調整できます。プレビュー上の薄いミント背景は確認用で、書き出しPNGには入りません。</p>
+        </section>
+
+        <section>
+          <h3>保存と復元</h3>
+          <ul>
+            <li>JSON保存：現在のプロジェクト全体をJSONファイルとして保存します。</li>
+            <li>JSON読込：保存済みJSONを読み込みます。</li>
+            <li>キャッシュ保存：ブラウザ内に一時保存します。</li>
+            <li>キャッシュ復元：ブラウザ内の保存データを復元します。</li>
+          </ul>
+          <p>音声も保存対象です。長い音声や複数シーン分の音声を含めると、JSONやキャッシュの容量が大きくなります。</p>
+        </section>
+
+        <section>
+          <h3>書き出し</h3>
+          <p>書き出しは現在選択中のシーンが対象です。FPS、開始秒、終了秒、ファイル名接頭辞を指定し、「透過PNG連番ZIPを書き出し」を押してください。</p>
+          <p>ZIP書き出しにはJSZip CDNを使用しているため、インターネット接続が必要です。</p>
+        </section>
+      </div>
+
+      <div class="manual-modal-foot">
+        <button id="helpCloseFooterBtn" type="button" class="primary">閉じる</button>
+      </div>
+    </div>
+  </div>
+
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="app.js"></script>
