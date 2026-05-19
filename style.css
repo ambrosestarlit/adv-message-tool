@@ -501,6 +501,32 @@ audio {
   gap: 0.5rem;
 }
 
+.cps-field > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cps-field output {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.6rem;
+  padding: 0.1rem 0.46rem;
+  border: 1px solid rgba(199, 217, 232, 0.9);
+  border-radius: 999px;
+  background: rgba(239, 248, 255, 0.94);
+  color: #24475e;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cps-field input[type="range"] {
+  margin-top: 0.08rem;
+}
+
 .quick-time-buttons {
   gap: 0.45rem;
 }
@@ -736,6 +762,12 @@ body {
   padding: 0.48rem;
 }
 
+.cps-field output {
+  min-width: 4.1rem;
+  font-size: 0.7rem;
+  padding: 0.08rem 0.38rem;
+}
+
 .quick-number-grid {
   gap: 0.38rem;
 }
@@ -804,5 +836,242 @@ body {
     width: min(100%, 920px);
     min-width: 0;
     max-height: none;
+  }
+}
+
+.scene-control-stack {
+  gap: 0.62rem;
+}
+
+.scene-inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+}
+
+.scene-control-stack .button-row button {
+  flex: 1;
+}
+
+#sceneStatus {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(199, 217, 232, 0.85);
+  border-radius: 12px;
+  background: rgba(245, 251, 255, 0.85);
+}
+
+@media (max-width: 720px) {
+  .scene-inline-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 2026-05: 右側セリフ入力バーの設定項目レイアウト修正 */
+.canvas-wrap {
+  grid-template-rows: auto auto auto;
+}
+
+.quick-line-grid {
+  width: 100%;
+  grid-template-columns: minmax(112px, 0.55fr) minmax(280px, 1.45fr) minmax(360px, 1.65fr) minmax(104px, auto);
+  align-items: stretch;
+}
+
+.quick-line-grid > .field,
+.quick-settings,
+.quick-action-buttons {
+  min-width: 0;
+}
+
+.quick-character-field,
+.quick-text-field,
+.quick-settings,
+.quick-action-buttons {
+  align-self: stretch;
+}
+
+.quick-settings {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.quick-settings summary {
+  min-height: 2rem;
+  display: flex;
+  align-items: center;
+}
+
+.quick-settings-body {
+  min-width: 0;
+  align-content: start;
+}
+
+.quick-number-grid {
+  grid-template-columns: minmax(70px, 0.7fr) minmax(70px, 0.7fr) minmax(210px, 1.65fr);
+  align-items: end;
+}
+
+.cps-field {
+  min-width: 0;
+}
+
+.cps-control-row {
+  display: grid;
+  grid-template-columns: 5rem minmax(120px, 1fr);
+  gap: 0.42rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.cps-number-input {
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cps-range-input {
+  min-width: 0;
+  width: 100%;
+}
+
+.quick-time-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.quick-time-buttons button {
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+@media (max-width: 1500px) {
+  .quick-line-grid {
+    grid-template-columns: minmax(105px, 0.52fr) minmax(240px, 1.25fr) minmax(330px, 1.55fr) minmax(96px, auto);
+  }
+
+  .quick-number-grid {
+    grid-template-columns: minmax(62px, 0.62fr) minmax(62px, 0.62fr) minmax(190px, 1.6fr);
+  }
+
+  .cps-control-row {
+    grid-template-columns: 4.6rem minmax(96px, 1fr);
+  }
+}
+
+@media (max-width: 1280px) {
+  .quick-line-grid {
+    grid-template-columns: minmax(100px, 0.62fr) minmax(220px, 1.35fr) minmax(300px, 1.55fr) minmax(92px, auto);
+  }
+
+  .quick-number-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cps-field {
+    grid-column: 1 / -1;
+  }
+
+  .cps-control-row {
+    grid-template-columns: 4.8rem minmax(140px, 1fr);
+  }
+}
+
+@media (max-width: 1080px) {
+  .quick-line-grid {
+    grid-template-columns: minmax(120px, 0.65fr) minmax(280px, 1.5fr);
+  }
+
+  .quick-settings,
+  .quick-action-buttons {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .quick-line-grid,
+  .quick-number-grid,
+  .cps-control-row,
+  .quick-time-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* 2026-05: 下部セリフ入力パネルをプレビュー幅に縛らず横長化 */
+.quick-line-panel {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.quick-line-grid {
+  width: 100%;
+  grid-template-columns: minmax(132px, 0.55fr) minmax(360px, 2.25fr) minmax(420px, 1.75fr) minmax(110px, auto);
+  align-items: stretch;
+}
+
+.quick-character-field {
+  align-self: start;
+}
+
+.quick-character-field select {
+  height: 2.45rem;
+  min-height: 2.45rem;
+  padding-top: 0.34rem;
+  padding-bottom: 0.34rem;
+}
+
+.quick-text-field {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-self: stretch;
+}
+
+.quick-line-panel .quick-text-field textarea {
+  height: 100%;
+  min-height: 5.2rem;
+  resize: vertical;
+}
+
+.quick-settings {
+  min-height: 0;
+}
+
+.quick-settings-body {
+  min-height: 0;
+}
+
+@media (max-width: 1280px) {
+  .quick-line-panel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .quick-line-grid {
+    grid-template-columns: minmax(112px, 0.55fr) minmax(300px, 1.8fr) minmax(360px, 1.5fr) minmax(96px, auto);
+  }
+}
+
+@media (max-width: 1080px) {
+  .quick-line-panel {
+    width: min(100%, 920px);
+  }
+}
+
+@media (max-width: 900px) {
+  .quick-line-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-character-field,
+  .quick-text-field,
+  .quick-settings,
+  .quick-action-buttons {
+    align-self: stretch;
+  }
+
+  .quick-line-panel .quick-text-field textarea {
+    min-height: 5.8rem;
   }
 }

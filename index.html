@@ -29,6 +29,26 @@
   <main class="app-layout">
     <aside class="panel controls-panel">
       <details open>
+        <summary>シーン管理</summary>
+        <div class="control-stack scene-control-stack">
+          <label class="field">
+            <span>シーン選択</span>
+            <select id="sceneSelect"></select>
+          </label>
+          <div class="inline-form scene-inline-form">
+            <input id="sceneNameInput" type="text" placeholder="シーン名" />
+            <button id="addSceneBtn" type="button">追加</button>
+            <button id="renameSceneBtn" type="button">名前変更</button>
+          </div>
+          <div class="button-row">
+            <button id="duplicateSceneBtn" type="button">複製</button>
+            <button id="deleteSceneBtn" type="button" class="danger">削除</button>
+          </div>
+          <p id="sceneStatus" class="hint">シーンごとに音声・セリフを保存します。キャラクター、ウィンドウ画像、表示設定はプロジェクト共通です。</p>
+        </div>
+      </details>
+
+      <details open>
         <summary>素材</summary>
         <div class="control-stack">
           <label class="field">
@@ -159,9 +179,12 @@
                     <span>終了秒</span>
                     <input id="lineEndInput" type="number" min="0" step="0.01" value="3" />
                   </label>
-                  <label class="field">
-                    <span>文字送り/秒</span>
-                    <input id="lineCpsInput" type="number" min="1" step="1" value="24" />
+                  <label class="field cps-field">
+                    <span>文字送り/秒 <output id="lineCpsOutput">24 cps</output></span>
+                    <div class="cps-control-row">
+                      <input id="lineCpsInput" class="cps-number-input" type="number" min="1" max="120" step="1" value="24" aria-label="文字送り速度 数値入力" />
+                      <input id="lineCpsRange" class="cps-range-input" type="range" min="1" max="120" step="1" value="24" aria-label="文字送り速度スライダー" />
+                    </div>
                   </label>
                 </div>
                 <div class="button-row quick-time-buttons">

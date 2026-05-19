@@ -59,6 +59,14 @@
   const saveCacheBtn = $("#saveCacheBtn");
   const loadCacheBtn = $("#loadCacheBtn");
 
+  const sceneSelect = $("#sceneSelect");
+  const sceneNameInput = $("#sceneNameInput");
+  const addSceneBtn = $("#addSceneBtn");
+  const renameSceneBtn = $("#renameSceneBtn");
+  const duplicateSceneBtn = $("#duplicateSceneBtn");
+  const deleteSceneBtn = $("#deleteSceneBtn");
+  const sceneStatus = $("#sceneStatus");
+
   const characterNameInput = $("#characterNameInput");
   const addCharacterBtn = $("#addCharacterBtn");
   const characterList = $("#characterList");
@@ -68,6 +76,8 @@
   const lineStartInput = $("#lineStartInput");
   const lineEndInput = $("#lineEndInput");
   const lineCpsInput = $("#lineCpsInput");
+  const lineCpsRange = $("#lineCpsRange");
+  const lineCpsOutput = $("#lineCpsOutput");
   const setStartFromAudioBtn = $("#setStartFromAudioBtn");
   const setEndFromAudioBtn = $("#setEndFromAudioBtn");
   const addOrUpdateLineBtn = $("#addOrUpdateLineBtn");
@@ -130,6 +140,8 @@
 
   const state = {
     characters: [{ id: "char_default", name: "キャラクター" }],
+    scenes: [],
+    currentSceneId: "",
     lines: [],
     selectedLineId: null,
     lastCharacterId: localStorage.getItem("adv-message-tool-last-character") || "char_default",
@@ -193,6 +205,18 @@
     return String(Math.round(n * 10 ** digits) / 10 ** digits);
   }
 
+  function normalizeCps(value) {
+    return Math.round(clampNumber(value, 1, 120));
+  }
+
+  function syncCpsControls(value, source = null) {
+    const cps = normalizeCps(value || 24);
+    if (lineCpsInput && source !== lineCpsInput) lineCpsInput.value = String(cps);
+    if (lineCpsRange && source !== lineCpsRange) lineCpsRange.value = String(cps);
+    if (lineCpsOutput) lineCpsOutput.textContent = `${cps} cps`;
+    return cps;
+  }
+
   function getByPath(object, path) {
     return path.split(".").reduce((current, key) => current?.[key], object);
   }
@@ -248,6 +272,170 @@
     });
   }
 
+
+  function cloneLine(line) {
+    return { ...line };
+  }
+
+  function createScene(name = "シーン1", source = {}) {
+    const audio = source.audio || null;
+    return {
+      id: source.id || uniqueId("scene"),
+      name: String(source.name || name || "シーン").trim() || "シーン",
+      lines: Array.isArray(source.lines) ? source.lines.map(cloneLine) : [],
+      audioDataUrl: source.audioDataUrl || audio?.dataUrl || null,
+      audioFileName: source.audioFileName || audio?.fileName || "",
+      audioMimeType: source.audioMimeType || audio?.mimeType || ""
+    };
+  }
+
+  function ensureScenes() {
+    if (!Array.isArray(state.scenes) || state.scenes.length === 0) {
+      state.scenes = [
+        createScene("シーン1", {
+          lines: state.lines,
+          audioDataUrl: state.audioDataUrl,
+          audioFileName: state.audioFileName,
+          audioMimeType: state.audioMimeType
+        })
+      ];
+    }
+
+    if (!state.currentSceneId || !state.scenes.some((scene) => scene.id === state.currentSceneId)) {
+      state.currentSceneId = state.scenes[0]?.id || "";
+    }
+  }
+
+  function getCurrentScene() {
+    ensureScenes();
+    return state.scenes.find((scene) => scene.id === state.currentSceneId) || state.scenes[0] || null;
+  }
+
+  function captureCurrentScene() {
+    const scene = getCurrentScene();
+    if (!scene) return;
+
+    scene.lines = state.lines.map(cloneLine);
+    scene.audioDataUrl = state.audioDataUrl || null;
+    scene.audioFileName = state.audioFileName || "";
+    scene.audioMimeType = state.audioMimeType || "";
+  }
+
+  function resetLineFormAfterSceneSwitch() {
+    state.selectedLineId = null;
+    lineTextInput.value = "";
+    lineStartInput.value = "0";
+    lineEndInput.value = "3";
+    syncCpsControls(24);
+    addOrUpdateLineBtn.textContent = "セリフ追加";
+  }
+
+  function applySceneToState(scene) {
+    if (!scene) return;
+
+    state.currentSceneId = scene.id;
+    state.lines = Array.isArray(scene.lines) ? scene.lines.map(cloneLine) : [];
+    resetLineFormAfterSceneSwitch();
+    setAudioFromDataUrl(scene.audioDataUrl || null, scene.audioFileName || "", scene.audioMimeType || "");
+    audioInput.value = "";
+    syncPreviewInputs(0);
+    updatePreviewMax();
+  }
+
+  function populateSceneSelect() {
+    ensureScenes();
+    if (!sceneSelect) return;
+
+    const selectedId = state.currentSceneId;
+    sceneSelect.innerHTML = "";
+
+    state.scenes.forEach((scene, index) => {
+      const option = document.createElement("option");
+      option.value = scene.id;
+      option.textContent = scene.name || `シーン${index + 1}`;
+      sceneSelect.appendChild(option);
+    });
+
+    sceneSelect.value = selectedId;
+
+    const current = getCurrentScene();
+    if (sceneNameInput && document.activeElement !== sceneNameInput) {
+      sceneNameInput.value = current?.name || "";
+    }
+
+    if (sceneStatus) {
+      const lineCount = state.lines.length;
+      const audioText = state.audioDataUrl ? `音声あり：${state.audioFileName || "音声ファイル"}` : "音声なし";
+      sceneStatus.textContent = `現在：${current?.name || "シーン"} / セリフ${lineCount}件 / ${audioText}`;
+    }
+  }
+
+  function refreshSceneUi() {
+    populateSceneSelect();
+    renderLineList();
+    updatePreviewMax();
+    renderAt(currentPreviewTime());
+  }
+
+  function addScene() {
+    captureCurrentScene();
+    const currentName = getCurrentScene()?.name || "";
+    const typedName = String(sceneNameInput.value || "").trim();
+    const name = typedName && typedName !== currentName ? typedName : `シーン${state.scenes.length + 1}`;
+    const scene = createScene(name);
+    state.scenes.push(scene);
+    applySceneToState(scene);
+    refreshSceneUi();
+  }
+
+  function renameScene() {
+    const scene = getCurrentScene();
+    if (!scene) return;
+
+    const name = String(sceneNameInput.value || "").trim();
+    if (!name) {
+      alert("シーン名を入力してください。");
+      return;
+    }
+
+    scene.name = name;
+    populateSceneSelect();
+  }
+
+  function duplicateScene() {
+    captureCurrentScene();
+    const source = getCurrentScene();
+    if (!source) return;
+
+    const copy = createScene(`${source.name || "シーン"} コピー`, {
+      lines: source.lines,
+      audioDataUrl: source.audioDataUrl,
+      audioFileName: source.audioFileName,
+      audioMimeType: source.audioMimeType
+    });
+    state.scenes.push(copy);
+    applySceneToState(copy);
+    refreshSceneUi();
+  }
+
+  function deleteScene() {
+    ensureScenes();
+    if (state.scenes.length <= 1) {
+      alert("シーンは最低1つ必要です。");
+      return;
+    }
+
+    const scene = getCurrentScene();
+    if (!scene) return;
+    if (!confirm(`${scene.name || "現在のシーン"}を削除しますか？`)) return;
+
+    const index = state.scenes.findIndex((target) => target.id === scene.id);
+    state.scenes = state.scenes.filter((target) => target.id !== scene.id);
+    const nextScene = state.scenes[Math.max(0, Math.min(index, state.scenes.length - 1))];
+    applySceneToState(nextScene);
+    refreshSceneUi();
+  }
+
   function setAudioFromDataUrl(dataUrl, fileName = "", mimeType = "") {
     state.audioDataUrl = dataUrl || null;
     state.audioFileName = fileName || "";
@@ -268,6 +456,8 @@
       audioFileInfo.textContent = "保存済み音声なし";
       previewTimeRange.max = Math.max(30, Number(exportEndInput.value) || 0);
     }
+
+    populateSceneSelect();
   }
 
   function downloadBlob(blob, filename) {
@@ -371,20 +561,46 @@
     return state.characters.find((character) => character.id === id) || null;
   }
 
-  function getActiveLine(time) {
+  function getFormPreviewLine(time) {
+    const text = lineTextInput.value.trim();
+    const characterId = lineCharacterSelect.value;
+    const start = Number(lineStartInput.value);
+    const end = Number(lineEndInput.value);
+
+    if (!text || !characterId) return null;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) return null;
+    if (time < start || time > end) return null;
+
+    return {
+      id: state.selectedLineId || "__form_preview__",
+      characterId,
+      text,
+      start,
+      end,
+      charsPerSecond: normalizeCps(lineCpsInput.value),
+      _isFormPreview: true
+    };
+  }
+
+  function getActiveLine(time, options = {}) {
+    const useFormPreview = options.useFormPreview !== false;
+    const formPreviewLine = useFormPreview ? getFormPreviewLine(time) : null;
+
+    if (formPreviewLine) return formPreviewLine;
+
     return [...state.lines]
       .sort((a, b) => Number(b.start) - Number(a.start))
       .find((line) => Number(line.start) <= time && time <= Number(line.end)) || null;
   }
 
   function getAnimatedText(line, time) {
-    const cps = Number(line.charsPerSecond) || 24;
+    const cps = normalizeCps(line.charsPerSecond || 24);
     const elapsed = Math.max(0, time - Number(line.start));
     const visibleLength = Math.floor(elapsed * cps);
     return Array.from(line.text || "").slice(0, visibleLength).join("");
   }
 
-  function renderAt(time) {
+  function renderAt(time, options = {}) {
     const currentTime = Number(time) || 0;
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -395,7 +611,7 @@
       drawFallbackWindow(ctx);
     }
 
-    const activeLine = getActiveLine(currentTime);
+    const activeLine = getActiveLine(currentTime, options);
     if (!activeLine) {
       activeLineInfo.textContent = "表示中のセリフなし";
       return;
@@ -425,7 +641,8 @@
       );
     });
 
-    activeLineInfo.textContent = `${characterName}：${activeLine.text}`;
+    const previewLabel = activeLine._isFormPreview ? "入力中 / " : "";
+    activeLineInfo.textContent = `${previewLabel}${characterName}：${activeLine.text}`;
   }
 
   function currentPreviewTime() {
@@ -437,6 +654,50 @@
     const value = toFixedSafe(time, 2);
     previewTimeInput.value = value;
     previewTimeRange.value = value;
+  }
+
+  function getLiveFormPreviewTime() {
+    const start = Number(lineStartInput.value);
+    const end = Number(lineEndInput.value);
+    let time = currentPreviewTime();
+
+    if (!lineTextInput.value.trim() || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+      return time;
+    }
+
+    if (time < start || time > end) {
+      const previewOffset = Math.min(1, Math.max(0.05, (end - start) * 0.35));
+      time = Math.min(end, start + previewOffset);
+      syncPreviewInputs(time);
+    }
+
+    return time;
+  }
+
+  function updateSelectedLineFromForm() {
+    if (!state.selectedLineId) return false;
+    const line = state.lines.find((target) => target.id === state.selectedLineId);
+    if (!line) return false;
+
+    const characterId = lineCharacterSelect.value;
+    const text = lineTextInput.value.trim();
+    const start = Number(lineStartInput.value);
+    const end = Number(lineEndInput.value);
+
+    if (characterId) line.characterId = characterId;
+    if (text) line.text = text;
+    if (Number.isFinite(start) && start >= 0) line.start = start;
+    if (Number.isFinite(end) && end > (Number.isFinite(start) ? start : Number(line.start))) line.end = end;
+    line.charsPerSecond = normalizeCps(lineCpsInput.value);
+    return true;
+  }
+
+  function livePreviewLineForm({ updateList = false } = {}) {
+    updateSelectedLineFromForm();
+    if (updateList) renderLineList();
+    populateSceneSelect();
+    updatePreviewMax();
+    renderAt(getLiveFormPreviewTime());
   }
 
   function updatePreviewMax() {
@@ -482,12 +743,22 @@
       remove.textContent = "削除";
       remove.disabled = state.characters.length <= 1;
       remove.addEventListener("click", () => {
-        const used = state.lines.some((line) => line.characterId === character.id);
+        captureCurrentScene();
+        const used = state.scenes.some((scene) => (scene.lines || []).some((line) => line.characterId === character.id));
         if (used && !confirm("このキャラクターを使用しているセリフがあります。削除しますか？")) return;
+
         state.characters = state.characters.filter((target) => target.id !== character.id);
-        state.lines = state.lines.filter((line) => line.characterId !== character.id);
+        state.scenes.forEach((scene) => {
+          scene.lines = (scene.lines || []).filter((line) => line.characterId !== character.id);
+        });
+        state.lines = (getCurrentScene()?.lines || []).map(cloneLine);
+        if (state.selectedLineId && !state.lines.some((line) => line.id === state.selectedLineId)) {
+          state.selectedLineId = null;
+          addOrUpdateLineBtn.textContent = "セリフ追加";
+        }
         if (state.lastCharacterId === character.id) state.lastCharacterId = state.characters[0]?.id || "";
         populateCharacterSelect();
+        populateSceneSelect();
         renderCharacterList();
         renderLineList();
         renderAt(currentPreviewTime());
@@ -560,9 +831,12 @@
     lineTextInput.value = line.text;
     lineStartInput.value = toFixedSafe(line.start);
     lineEndInput.value = toFixedSafe(line.end);
-    lineCpsInput.value = line.charsPerSecond;
+    syncCpsControls(line.charsPerSecond || 24);
     addOrUpdateLineBtn.textContent = "セリフ更新";
+    const previewOffset = Math.min(1, Math.max(0.05, (Number(line.end) || 0) - (Number(line.start) || 0)) * 0.35);
+    syncPreviewInputs(Math.min(Number(line.end) || Number(line.start) || 0, (Number(line.start) || 0) + previewOffset));
     renderLineList();
+    renderAt(currentPreviewTime());
   }
 
   function clearLineEdit() {
@@ -570,7 +844,7 @@
     lineTextInput.value = "";
     lineStartInput.value = toFixedSafe(Number(lineEndInput.value) || 0);
     lineEndInput.value = toFixedSafe((Number(lineStartInput.value) || 0) + 3);
-    lineCpsInput.value = "24";
+    syncCpsControls(24);
     addOrUpdateLineBtn.textContent = "セリフ追加";
     renderLineList();
   }
@@ -580,7 +854,7 @@
     const text = lineTextInput.value.trim();
     const start = Number(lineStartInput.value);
     const end = Number(lineEndInput.value);
-    const charsPerSecond = Math.max(1, Number(lineCpsInput.value) || 24);
+    const charsPerSecond = normalizeCps(lineCpsInput.value);
 
     if (!characterId) throw new Error("キャラクターを登録してください。");
     if (!text) throw new Error("セリフを入力してください。");
@@ -607,6 +881,7 @@
       exportStartInput.value = toFixedSafe(Math.min(Number(exportStartInput.value) || data.start, data.start));
       exportEndInput.value = toFixedSafe(Math.max(Number(exportEndInput.value) || data.end, data.end));
       renderLineList();
+      populateSceneSelect();
       renderAt(currentPreviewTime());
       if (!state.selectedLineId) lineTextInput.value = "";
     } catch (error) {
@@ -624,6 +899,7 @@
       end: Number(line.end) + Math.max(1, Number(line.end) - Number(line.start))
     });
     renderLineList();
+    populateSceneSelect();
     renderAt(currentPreviewTime());
   }
 
@@ -631,6 +907,7 @@
     state.lines = state.lines.filter((line) => line.id !== id);
     if (state.selectedLineId === id) clearLineEdit();
     renderLineList();
+    populateSceneSelect();
     renderAt(currentPreviewTime());
   }
 
@@ -726,14 +1003,32 @@
   }
 
   function getProjectData() {
+    captureCurrentScene();
+
+    const scenes = state.scenes.map((scene) => ({
+      id: scene.id,
+      name: scene.name,
+      lines: (scene.lines || []).map(cloneLine),
+      audio: scene.audioDataUrl
+        ? {
+            dataUrl: scene.audioDataUrl,
+            fileName: scene.audioFileName || "",
+            mimeType: scene.audioMimeType || ""
+          }
+        : null
+    }));
+
     return {
-      version: 1,
+      version: 2,
       canvas: {
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT
       },
       characters: state.characters,
-      lines: state.lines,
+      scenes,
+      currentSceneId: state.currentSceneId,
+      // 旧形式との互換用：現在のシーンもトップレベルへ残します。
+      lines: state.lines.map(cloneLine),
       settings: state.settings,
       lastCharacterId: state.lastCharacterId,
       windowImageDataUrl: state.windowImageDataUrl,
@@ -755,16 +1050,45 @@
     state.characters = Array.isArray(data.characters) && data.characters.length
       ? data.characters
       : [{ id: "char_default", name: "キャラクター" }];
-    state.lines = Array.isArray(data.lines) ? data.lines : [];
     state.selectedLineId = null;
     state.lastCharacterId = data.lastCharacterId || state.characters[0]?.id || "";
     state.settings = settings;
     state.windowImageDataUrl = data.windowImageDataUrl || null;
     state.windowImage = await loadImageFromDataUrl(state.windowImageDataUrl);
-    setAudioFromDataUrl(data.audioDataUrl || null, data.audioFileName || "", data.audioMimeType || "");
+
+    if (Array.isArray(data.scenes) && data.scenes.length > 0) {
+      state.scenes = data.scenes.map((scene, index) => createScene(scene.name || `シーン${index + 1}`, {
+        id: scene.id,
+        name: scene.name,
+        lines: scene.lines,
+        audio: scene.audio,
+        audioDataUrl: scene.audioDataUrl,
+        audioFileName: scene.audioFileName,
+        audioMimeType: scene.audioMimeType
+      }));
+      state.currentSceneId = data.currentSceneId && state.scenes.some((scene) => scene.id === data.currentSceneId)
+        ? data.currentSceneId
+        : state.scenes[0].id;
+    } else {
+      state.scenes = [
+        createScene("シーン1", {
+          lines: Array.isArray(data.lines) ? data.lines : [],
+          audioDataUrl: data.audioDataUrl || null,
+          audioFileName: data.audioFileName || "",
+          audioMimeType: data.audioMimeType || ""
+        })
+      ];
+      state.currentSceneId = state.scenes[0].id;
+    }
+
+    const currentScene = getCurrentScene();
+    state.lines = (currentScene?.lines || []).map(cloneLine);
+    setAudioFromDataUrl(currentScene?.audioDataUrl || null, currentScene?.audioFileName || "", currentScene?.audioMimeType || "");
     audioInput.value = "";
+    resetLineFormAfterSceneSwitch();
 
     populateCharacterSelect();
+    populateSceneSelect();
     renderCharacterList();
     renderLineList();
     renderSettingsPanel();
@@ -853,7 +1177,7 @@
     try {
       for (let frame = 0; frame < totalFrames; frame += 1) {
         const time = start + frame / fps;
-        renderAt(time);
+        renderAt(time, { useFormPreview: false });
         const blob = await canvasToPngBlob();
         const filename = `${prefix}_${String(frame + 1).padStart(digits, "0")}.png`;
         zip.file(filename, blob);
@@ -881,6 +1205,23 @@
   }
 
   function bindEvents() {
+    sceneSelect.addEventListener("change", () => {
+      captureCurrentScene();
+      const nextScene = state.scenes.find((scene) => scene.id === sceneSelect.value);
+      if (!nextScene) return;
+      applySceneToState(nextScene);
+      refreshSceneUi();
+    });
+
+    addSceneBtn.addEventListener("click", addScene);
+    renameSceneBtn.addEventListener("click", renameScene);
+    duplicateSceneBtn.addEventListener("click", duplicateScene);
+    deleteSceneBtn.addEventListener("click", deleteScene);
+
+    sceneNameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") renameSceneBtn.click();
+    });
+
     audioInput.addEventListener("change", async () => {
       const file = audioInput.files?.[0];
       if (!file) return;
@@ -889,6 +1230,7 @@
         audioFileInfo.textContent = "音声を保存用データへ変換中...";
         const dataUrl = await readFileAsDataUrl(file);
         setAudioFromDataUrl(dataUrl, file.name, file.type || "audio/*");
+        populateSceneSelect();
       } catch (error) {
         console.error(error);
         alert("音声ファイルの読み込みに失敗しました。");
@@ -901,6 +1243,7 @@
     clearAudioBtn.addEventListener("click", () => {
       audioInput.value = "";
       setAudioFromDataUrl(null);
+      populateSceneSelect();
       updatePreviewMax();
       renderAt(currentPreviewTime());
     });
@@ -954,16 +1297,35 @@
     lineCharacterSelect.addEventListener("change", () => {
       state.lastCharacterId = lineCharacterSelect.value;
       localStorage.setItem("adv-message-tool-last-character", state.lastCharacterId);
+      livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
+    });
+
+    lineTextInput.addEventListener("input", () => livePreviewLineForm({ updateList: Boolean(state.selectedLineId) }));
+
+    [lineStartInput, lineEndInput].forEach((input) => {
+      input.addEventListener("input", () => livePreviewLineForm({ updateList: Boolean(state.selectedLineId) }));
+    });
+
+    lineCpsInput.addEventListener("input", () => {
+      syncCpsControls(lineCpsInput.value, lineCpsInput);
+      livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
+    });
+
+    lineCpsRange.addEventListener("input", () => {
+      syncCpsControls(lineCpsRange.value, lineCpsRange);
+      livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
     });
 
     setStartFromAudioBtn.addEventListener("click", () => {
       const value = audioPlayer.src ? audioPlayer.currentTime : Number(previewTimeInput.value) || 0;
       lineStartInput.value = toFixedSafe(value);
+      livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
     });
 
     setEndFromAudioBtn.addEventListener("click", () => {
       const value = audioPlayer.src ? audioPlayer.currentTime : Number(previewTimeInput.value) || 0;
       lineEndInput.value = toFixedSafe(value);
+      livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
     });
 
     addOrUpdateLineBtn.addEventListener("click", addOrUpdateLine);
@@ -1035,12 +1397,17 @@
   function init() {
     canvas.width = CANVAS_WIDTH;
     canvas.height = CANVAS_HEIGHT;
+    ensureScenes();
+    populateSceneSelect();
     populateCharacterSelect();
     renderCharacterList();
     renderLineList();
     renderSettingsPanel();
     bindEvents();
-    setAudioFromDataUrl(state.audioDataUrl, state.audioFileName, state.audioMimeType);
+    const currentScene = getCurrentScene();
+    state.lines = (currentScene?.lines || []).map(cloneLine);
+    setAudioFromDataUrl(currentScene?.audioDataUrl || null, currentScene?.audioFileName || "", currentScene?.audioMimeType || "");
+    syncCpsControls(lineCpsInput.value || 24);
     renderAt(0);
   }
 
