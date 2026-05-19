@@ -81,6 +81,23 @@
         </div>
       </details>
 
+
+
+      <details open>
+        <summary>台詞ボタン登録</summary>
+        <div class="control-stack speech-bank-stack">
+          <label class="field">
+            <span>台詞txt読み込み</span>
+            <input id="speechTextInput" type="file" accept=".txt,text/plain" />
+          </label>
+          <div class="button-row">
+            <button id="clearSpeechButtonsBtn" type="button" class="danger">台詞ボタンを全削除</button>
+          </div>
+          <p id="speechBankStatus" class="hint">txt内の「キャラ名：台詞」「キャラ名「台詞」」「キャラ名(台詞)」または「001 キャラ名：台詞」を読み込みます。</p>
+          <div id="speechButtonGroups" class="speech-button-groups"></div>
+        </div>
+      </details>
+
       <details open>
         <summary>セリフ一覧</summary>
         <div class="control-stack">

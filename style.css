@@ -1075,3 +1075,118 @@ body {
     min-height: 5.8rem;
   }
 }
+
+
+/* 2026-05: txt読み込み台詞ボタン */
+.speech-bank-stack .hint {
+  line-height: 1.6;
+}
+
+.speech-button-groups {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.empty-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.speech-button-group {
+  border: 1px solid rgba(190, 211, 226, 0.88);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  overflow: hidden;
+}
+
+.speech-button-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.52rem 0.65rem;
+  border-bottom: 1px solid rgba(199, 217, 232, 0.75);
+  background: rgba(239, 248, 254, 0.72);
+}
+
+.speech-button-group-head strong {
+  color: #24475e;
+  overflow-wrap: anywhere;
+}
+
+.speech-button-group-head span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.speech-button-list {
+  display: grid;
+  gap: 0.42rem;
+  padding: 0.55rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.speech-button-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+
+.speech-insert-button {
+  min-width: 0;
+  text-align: left;
+  line-height: 1.45;
+  padding: 0.48rem 0.58rem;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+
+.speech-remove-button {
+  width: 2.3rem;
+  padding: 0.35rem;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+/* 2026-05: 台詞ボタンの挿入状態表示 */
+.speech-button-item.is-inserted {
+  opacity: 0.68;
+}
+
+.speech-button-number {
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.2rem;
+  padding: 0.12rem 0.46rem;
+  border: 1px solid rgba(160, 181, 198, 0.72);
+  border-radius: 999px;
+  background: rgba(230, 236, 241, 0.92);
+  color: #587082;
+  font-size: 0.76rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.speech-insert-button.is-inserted {
+  border-color: rgba(139, 154, 166, 0.78);
+  background: linear-gradient(180deg, #eef1f3, #d7dde2);
+  color: #71808b;
+  box-shadow: none;
+}
+
+.speech-insert-button.is-inserted::after {
+  content: "挿入済み / 再クリックで取消";
+  display: block;
+  margin-top: 0.18rem;
+  font-size: 0.72rem;
+  color: #7b8790;
+}

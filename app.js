@@ -71,6 +71,11 @@
   const addCharacterBtn = $("#addCharacterBtn");
   const characterList = $("#characterList");
 
+  const speechTextInput = $("#speechTextInput");
+  const clearSpeechButtonsBtn = $("#clearSpeechButtonsBtn");
+  const speechBankStatus = $("#speechBankStatus");
+  const speechButtonGroups = $("#speechButtonGroups");
+
   const lineCharacterSelect = $("#lineCharacterSelect");
   const lineTextInput = $("#lineTextInput");
   const lineStartInput = $("#lineStartInput");
@@ -140,6 +145,7 @@
 
   const state = {
     characters: [{ id: "char_default", name: "キャラクター" }],
+    speechButtons: [],
     scenes: [],
     currentSceneId: "",
     lines: [],
@@ -707,6 +713,252 @@
     previewTimeRange.max = toFixedSafe(max, 2);
   }
 
+
+  function normalizeCharacterName(name) {
+    return String(name || "").trim();
+  }
+
+  function findCharacterByName(name) {
+    const normalized = normalizeCharacterName(name);
+    return state.characters.find((character) => normalizeCharacterName(character.name) === normalized) || null;
+  }
+
+  function getOrCreateCharacterByName(name) {
+    const normalized = normalizeCharacterName(name);
+    if (!normalized) return null;
+
+    const existing = findCharacterByName(normalized);
+    if (existing) return existing;
+
+    const character = { id: uniqueId("char"), name: normalized };
+    state.characters.push(character);
+    return character;
+  }
+
+  function normalizeSpeechText(text, opener) {
+    let output = String(text || "").trim();
+    if (opener === "「") output = output.replace(/」\s*$/, "").trim();
+    if (opener === "(" || opener === "（") output = output.replace(/[)）]\s*$/, "").trim();
+    return output;
+  }
+
+  function parseSpeechLine(rawLine) {
+    const raw = String(rawLine || "").trim();
+    if (!raw) return null;
+
+    const numbered = raw.match(/^(\d{3})\s+([\s\S]+)$/);
+    const speechNumber = numbered ? numbered[1] : "";
+    const line = (numbered ? numbered[2] : raw).trim();
+    const match = line.match(/^(.+?)(：|:|「|\(|（)([\s\S]*)$/);
+    if (!match) return null;
+
+    const characterName = normalizeCharacterName(match[1]);
+    const text = normalizeSpeechText(match[3], match[2]);
+    if (!characterName || !text) return null;
+
+    return { characterName, text, speechNumber, raw };
+  }
+
+  function importSpeechText(text) {
+    const rows = String(text || "").split(/\r?\n/);
+    let added = 0;
+    let createdCharacters = 0;
+    let skipped = 0;
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const parsed = parseSpeechLine(rows[index]);
+      if (!parsed) {
+        if (String(rows[index] || "").trim()) skipped += 1;
+        continue;
+      }
+
+      const beforeCount = state.characters.length;
+      const character = getOrCreateCharacterByName(parsed.characterName);
+      if (!character) {
+        skipped += 1;
+        continue;
+      }
+      if (state.characters.length > beforeCount) createdCharacters += 1;
+
+      state.speechButtons.push({
+        id: uniqueId("speech"),
+        characterId: character.id,
+        text: parsed.text,
+        speechNumber: parsed.speechNumber || "",
+        sourceLineNumber: index + 1,
+        raw: parsed.raw
+      });
+      added += 1;
+    }
+
+    state.speechButtons.sort((a, b) => {
+      const charA = findCharacter(a.characterId)?.name || "";
+      const charB = findCharacter(b.characterId)?.name || "";
+      const charCompare = charA.localeCompare(charB, "ja");
+      if (charCompare) return charCompare;
+      const numA = a.speechNumber ? Number(a.speechNumber) : Number.POSITIVE_INFINITY;
+      const numB = b.speechNumber ? Number(b.speechNumber) : Number.POSITIVE_INFINITY;
+      return numA - numB || (a.sourceLineNumber || 0) - (b.sourceLineNumber || 0);
+    });
+
+    populateCharacterSelect();
+    renderCharacterList();
+    renderSpeechButtonGroups();
+    renderAt(currentPreviewTime());
+
+    if (speechBankStatus) {
+      speechBankStatus.textContent = `${added}件の台詞ボタンを追加しました。新規キャラ${createdCharacters}件 / 読み飛ばし${skipped}行`;
+    }
+  }
+
+  function insertSpeechButton(buttonId) {
+    const button = state.speechButtons.find((item) => item.id === buttonId);
+    if (!button) return;
+
+    const character = findCharacter(button.characterId);
+    if (!character) {
+      alert("この台詞ボタンのキャラクターが見つかりません。");
+      return;
+    }
+
+    const insertedLine = state.lines.find((line) => line.speechButtonId === button.id);
+    if (insertedLine) {
+      state.lines = state.lines.filter((line) => line.speechButtonId !== button.id);
+      if (state.selectedLineId === insertedLine.id) {
+        state.selectedLineId = null;
+        lineTextInput.value = "";
+      }
+      renderLineList();
+      renderSpeechButtonGroups();
+      populateSceneSelect();
+      renderAt(currentPreviewTime());
+      if (speechBankStatus) speechBankStatus.textContent = `「${button.text}」の挿入をキャンセルしました。`;
+      return;
+    }
+
+    const now = audioPlayer.src ? audioPlayer.currentTime : Number(previewTimeInput.value) || 0;
+    const currentStart = Number(lineStartInput.value);
+    const currentEnd = Number(lineEndInput.value);
+    const duration = Number.isFinite(currentStart) && Number.isFinite(currentEnd) && currentEnd > currentStart
+      ? Math.max(0.1, currentEnd - currentStart)
+      : 3;
+    const start = Math.max(0, now);
+    const end = start + duration;
+    const newLine = {
+      id: uniqueId("line"),
+      characterId: character.id,
+      text: button.text,
+      start,
+      end,
+      charsPerSecond: normalizeCps(lineCpsInput.value),
+      speechButtonId: button.id
+    };
+
+    state.lines.push(newLine);
+    state.selectedLineId = newLine.id;
+    state.lastCharacterId = character.id;
+    localStorage.setItem("adv-message-tool-last-character", character.id);
+
+    lineCharacterSelect.value = character.id;
+    lineTextInput.value = button.text;
+    lineStartInput.value = toFixedSafe(start);
+    lineEndInput.value = toFixedSafe(end);
+    syncPreviewInputs(start);
+
+    exportStartInput.value = toFixedSafe(Math.min(Number(exportStartInput.value) || start, start));
+    exportEndInput.value = toFixedSafe(Math.max(Number(exportEndInput.value) || end, end));
+
+    renderLineList();
+    renderSpeechButtonGroups();
+    populateSceneSelect();
+    renderAt(start);
+    if (speechBankStatus) speechBankStatus.textContent = `「${button.text}」を${toFixedSafe(start)}sへ挿入しました。もう一度押すとキャンセルできます。`;
+  }
+
+  function removeSpeechButton(buttonId) {
+    state.speechButtons = state.speechButtons.filter((item) => item.id !== buttonId);
+    renderSpeechButtonGroups();
+  }
+
+  function renderSpeechButtonGroups() {
+    if (!speechButtonGroups) return;
+    speechButtonGroups.innerHTML = "";
+
+    const validButtons = state.speechButtons.filter((button) => findCharacter(button.characterId));
+    state.speechButtons = validButtons;
+
+    if (validButtons.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "empty-text";
+      empty.textContent = "台詞txtを読み込むと、キャラごとの台詞ボタンがここに表示されます。";
+      speechButtonGroups.appendChild(empty);
+      return;
+    }
+
+    const grouped = new Map();
+    for (const button of validButtons) {
+      const character = findCharacter(button.characterId);
+      if (!character) continue;
+      if (!grouped.has(character.id)) grouped.set(character.id, { character, buttons: [] });
+      grouped.get(character.id).buttons.push(button);
+    }
+
+    for (const { character, buttons } of grouped.values()) {
+      const group = document.createElement("section");
+      group.className = "speech-button-group";
+
+      const head = document.createElement("div");
+      head.className = "speech-button-group-head";
+
+      const title = document.createElement("strong");
+      title.textContent = character.name;
+
+      const count = document.createElement("span");
+      count.textContent = `${buttons.length}件`;
+
+      head.append(title, count);
+
+      const list = document.createElement("div");
+      list.className = "speech-button-list";
+
+      for (const item of buttons) {
+        const wrap = document.createElement("div");
+        const insertedLine = state.lines.find((line) => line.speechButtonId === item.id);
+        wrap.className = `speech-button-item${insertedLine ? " is-inserted" : ""}`;
+
+        if (item.speechNumber) {
+          const number = document.createElement("span");
+          number.className = "speech-button-number";
+          number.textContent = item.speechNumber;
+          wrap.appendChild(number);
+        }
+
+        const insert = document.createElement("button");
+        insert.type = "button";
+        insert.className = `speech-insert-button${insertedLine ? " is-inserted" : ""}`;
+        insert.textContent = item.text;
+        insert.title = insertedLine
+          ? `${character.name}：${item.text} / 挿入済み。もう一度押すとキャンセル`
+          : `${character.name}：${item.text} / クリックで現在時刻へ挿入`;
+        insert.setAttribute("aria-pressed", insertedLine ? "true" : "false");
+        insert.addEventListener("click", () => insertSpeechButton(item.id));
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "speech-remove-button danger";
+        remove.textContent = "×";
+        remove.title = "この台詞ボタンを削除";
+        remove.addEventListener("click", () => removeSpeechButton(item.id));
+
+        wrap.append(insert, remove);
+        list.appendChild(wrap);
+      }
+
+      group.append(head, list);
+      speechButtonGroups.appendChild(group);
+    }
+  }
+
   function populateCharacterSelect() {
     lineCharacterSelect.innerHTML = "";
 
@@ -756,10 +1008,12 @@
           state.selectedLineId = null;
           addOrUpdateLineBtn.textContent = "セリフ追加";
         }
+        state.speechButtons = state.speechButtons.filter((button) => button.characterId !== character.id);
         if (state.lastCharacterId === character.id) state.lastCharacterId = state.characters[0]?.id || "";
         populateCharacterSelect();
         populateSceneSelect();
         renderCharacterList();
+        renderSpeechButtonGroups();
         renderLineList();
         renderAt(currentPreviewTime());
       });
@@ -881,6 +1135,7 @@
       exportStartInput.value = toFixedSafe(Math.min(Number(exportStartInput.value) || data.start, data.start));
       exportEndInput.value = toFixedSafe(Math.max(Number(exportEndInput.value) || data.end, data.end));
       renderLineList();
+      renderSpeechButtonGroups();
       populateSceneSelect();
       renderAt(currentPreviewTime());
       if (!state.selectedLineId) lineTextInput.value = "";
@@ -907,6 +1162,7 @@
     state.lines = state.lines.filter((line) => line.id !== id);
     if (state.selectedLineId === id) clearLineEdit();
     renderLineList();
+    renderSpeechButtonGroups();
     populateSceneSelect();
     renderAt(currentPreviewTime());
   }
@@ -1025,6 +1281,7 @@
         height: CANVAS_HEIGHT
       },
       characters: state.characters,
+      speechButtons: state.speechButtons.map((button) => ({ ...button })),
       scenes,
       currentSceneId: state.currentSceneId,
       // 旧形式との互換用：現在のシーンもトップレベルへ残します。
@@ -1050,6 +1307,11 @@
     state.characters = Array.isArray(data.characters) && data.characters.length
       ? data.characters
       : [{ id: "char_default", name: "キャラクター" }];
+    state.speechButtons = Array.isArray(data.speechButtons)
+      ? data.speechButtons
+          .filter((button) => button && button.characterId && button.text)
+          .map((button) => ({ ...button, id: button.id || uniqueId("speech") }))
+      : [];
     state.selectedLineId = null;
     state.lastCharacterId = data.lastCharacterId || state.characters[0]?.id || "";
     state.settings = settings;
@@ -1090,6 +1352,7 @@
     populateCharacterSelect();
     populateSceneSelect();
     renderCharacterList();
+    renderSpeechButtonGroups();
     renderLineList();
     renderSettingsPanel();
     updatePreviewMax();
@@ -1294,6 +1557,32 @@
       if (event.key === "Enter") addCharacterBtn.click();
     });
 
+    speechTextInput?.addEventListener("change", async () => {
+      const file = speechTextInput.files?.[0];
+      if (!file) return;
+
+      try {
+        if (speechBankStatus) speechBankStatus.textContent = "台詞txtを読み込み中...";
+        const text = await readFileAsText(file);
+        importSpeechText(text);
+      } catch (error) {
+        console.error(error);
+        alert("台詞txtの読み込みに失敗しました。");
+        if (speechBankStatus) speechBankStatus.textContent = "台詞txtの読み込みに失敗しました。";
+      } finally {
+        speechTextInput.value = "";
+      }
+    });
+
+    clearSpeechButtonsBtn?.addEventListener("click", () => {
+      if (state.speechButtons.length === 0) return;
+      if (!confirm("登録済みの台詞ボタンをすべて削除しますか？")) return;
+      state.speechButtons = [];
+      renderSpeechButtonGroups();
+      if (speechBankStatus) speechBankStatus.textContent = "台詞ボタンをすべて削除しました。";
+    });
+
+
     lineCharacterSelect.addEventListener("change", () => {
       state.lastCharacterId = lineCharacterSelect.value;
       localStorage.setItem("adv-message-tool-last-character", state.lastCharacterId);
@@ -1401,6 +1690,7 @@
     populateSceneSelect();
     populateCharacterSelect();
     renderCharacterList();
+    renderSpeechButtonGroups();
     renderLineList();
     renderSettingsPanel();
     bindEvents();
