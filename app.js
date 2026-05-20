@@ -53,6 +53,9 @@
   const clearAudioBtn = $("#clearAudioBtn");
   const windowImageInput = $("#windowImageInput");
   const clearWindowImageBtn = $("#clearWindowImageBtn");
+  const fontInput = $("#fontInput");
+  const fontStatus = $("#fontStatus");
+  const customFontList = $("#customFontList");
 
   const saveJsonBtn = $("#saveJsonBtn");
   const loadJsonInput = $("#loadJsonInput");
@@ -83,6 +86,10 @@
   const lineCpsInput = $("#lineCpsInput");
   const lineCpsRange = $("#lineCpsRange");
   const lineCpsOutput = $("#lineCpsOutput");
+  const lineAnimationSelect = $("#lineAnimationSelect");
+  const lineScaleRevealMinInput = $("#lineScaleRevealMinInput");
+  const lineScaleRevealMinRange = $("#lineScaleRevealMinRange");
+  const lineScaleRevealMinOutput = $("#lineScaleRevealMinOutput");
   const setStartFromAudioBtn = $("#setStartFromAudioBtn");
   const setEndFromAudioBtn = $("#setEndFromAudioBtn");
   const addOrUpdateLineBtn = $("#addOrUpdateLineBtn");
@@ -162,6 +169,7 @@
     audioFileName: "",
     audioMimeType: "",
     audioObjectUrl: null,
+    customFonts: [],
     settings: defaultSettings()
   };
 
@@ -228,6 +236,53 @@
     return cps;
   }
 
+  function normalizeAnimation(value) {
+    return ["normal", "typewriter", "scaleReveal"].includes(value) ? value : "typewriter";
+  }
+
+  function normalizeScaleRevealMin(value) {
+    return Math.round(clampNumber(value, 1, 100));
+  }
+
+  function syncScaleRevealMinControls(value, source = null) {
+    const min = normalizeScaleRevealMin(value || 18);
+    if (lineScaleRevealMinInput && source !== lineScaleRevealMinInput) lineScaleRevealMinInput.value = String(min);
+    if (lineScaleRevealMinRange && source !== lineScaleRevealMinRange) lineScaleRevealMinRange.value = String(min);
+    if (lineScaleRevealMinOutput) lineScaleRevealMinOutput.textContent = `${min}%`;
+    return min;
+  }
+
+  function syncAnimationControls(animation = "typewriter") {
+    const value = normalizeAnimation(animation);
+    if (lineAnimationSelect) lineAnimationSelect.value = value;
+    document.querySelectorAll(".scale-reveal-field").forEach((element) => {
+      element.classList.toggle("is-muted", value !== "scaleReveal");
+    });
+    return value;
+  }
+
+  function getFontOptions() {
+    const customOptions = (state.customFonts || [])
+      .filter((font) => font && font.family && font.dataUrl)
+      .map((font) => ({
+        label: `任意：${font.label || font.fileName || font.family}`,
+        value: `"${font.family}", sans-serif`
+      }));
+    return [...FONT_OPTIONS, ...customOptions];
+  }
+
+  function escapeCssString(value) {
+    return String(value || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  }
+
+  function sanitizeFontFamilyName(fileName) {
+    const base = String(fileName || "custom-font")
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "custom_font";
+    return `UserFont_${base}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
   function getByPath(object, path) {
     return path.split(".").reduce((current, key) => current?.[key], object);
   }
@@ -268,6 +323,114 @@
       reader.onerror = reject;
       reader.readAsText(file, "utf-8");
     });
+  }
+
+  async function loadCustomFont(font) {
+    if (!font || !font.family || !font.dataUrl) return false;
+    if (font._loaded) return true;
+    if (typeof FontFace === "undefined") return false;
+
+    try {
+      const face = new FontFace(font.family, `url("${escapeCssString(font.dataUrl)}")`);
+      const loaded = await face.load();
+      document.fonts.add(loaded);
+      font._loaded = true;
+      return true;
+    } catch (error) {
+      console.error(error);
+      font._loaded = false;
+      return false;
+    }
+  }
+
+  async function hydrateCustomFonts() {
+    const results = await Promise.all((state.customFonts || []).map((font) => loadCustomFont(font)));
+    renderCustomFontList();
+    return results.every(Boolean);
+  }
+
+  function renderCustomFontList() {
+    if (!customFontList) return;
+    customFontList.innerHTML = "";
+
+    if (!state.customFonts || state.customFonts.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "empty-text";
+      empty.textContent = "任意フォントはまだ登録されていません。";
+      customFontList.appendChild(empty);
+      if (fontStatus) fontStatus.textContent = "ttf / otf / woff / woff2 を読み込むと、名前フォント・本文フォントで個別に選べます。";
+      return;
+    }
+
+    for (const font of state.customFonts) {
+      const item = document.createElement("div");
+      item.className = "custom-font-item";
+
+      const sample = document.createElement("div");
+      sample.className = "custom-font-sample";
+      sample.style.fontFamily = `"${font.family}", sans-serif`;
+      sample.textContent = font.label || font.fileName || font.family;
+
+      const meta = document.createElement("small");
+      meta.textContent = `${font.fileName || "font"}${font._loaded ? " / 読み込み済み" : " / 未読込"}`;
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "danger";
+      remove.textContent = "削除";
+      remove.addEventListener("click", () => {
+        const fontValue = `"${font.family}", sans-serif`;
+        state.customFonts = state.customFonts.filter((target) => target.id !== font.id);
+        if (state.settings.nameText.fontFamily === fontValue) state.settings.nameText.fontFamily = "\"Noto Sans JP\", sans-serif";
+        if (state.settings.bodyText.fontFamily === fontValue) state.settings.bodyText.fontFamily = "\"Noto Sans JP\", sans-serif";
+        renderCustomFontList();
+        renderSettingsPanel();
+        renderAt(currentPreviewTime());
+      });
+
+      const textWrap = document.createElement("div");
+      textWrap.append(sample, meta);
+      item.append(textWrap, remove);
+      customFontList.appendChild(item);
+    }
+
+    if (fontStatus) {
+      fontStatus.textContent = `${state.customFonts.length}件の任意フォントを登録中。表示設定から名前・本文それぞれに割り当てできます。`;
+    }
+  }
+
+  async function importCustomFonts(files) {
+    const targets = Array.from(files || []).filter((file) => file);
+    if (targets.length === 0) return;
+    if (fontStatus) fontStatus.textContent = "フォントを読み込み中...";
+
+    let added = 0;
+    for (const file of targets) {
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const label = file.name.replace(/\\.[^.]+$/, "") || file.name;
+        const font = {
+          id: uniqueId("font"),
+          label,
+          family: sanitizeFontFamilyName(file.name),
+          fileName: file.name,
+          mimeType: file.type || "font/*",
+          dataUrl
+        };
+        const ok = await loadCustomFont(font);
+        if (!ok) throw new Error("FontFace load failed");
+        state.customFonts.push(font);
+        added += 1;
+      } catch (error) {
+        console.error(error);
+        alert(`${file.name} のフォント読み込みに失敗しました。`);
+      }
+    }
+
+    renderCustomFontList();
+    renderSettingsPanel();
+    renderAt(currentPreviewTime());
+    if (fontStatus) fontStatus.textContent = `${added}件のフォントを追加しました。名前フォント・本文フォントから選択できます。`;
   }
 
   function loadImageFromDataUrl(dataUrl) {
@@ -338,6 +501,8 @@
     lineStartInput.value = "0";
     lineEndInput.value = "3";
     syncCpsControls(24);
+    syncAnimationControls("typewriter");
+    syncScaleRevealMinControls(18);
     addOrUpdateLineBtn.textContent = "セリフ追加";
   }
 
@@ -589,6 +754,8 @@
       start,
       end,
       charsPerSecond: normalizeCps(lineCpsInput.value),
+      animation: normalizeAnimation(lineAnimationSelect?.value),
+      scaleRevealMin: normalizeScaleRevealMin(lineScaleRevealMinInput?.value || 18),
       _isFormPreview: true
     };
   }
@@ -604,11 +771,120 @@
       .find((line) => Number(line.start) <= time && time <= Number(line.end)) || null;
   }
 
+  function getLineAnimation(line) {
+    return normalizeAnimation(line?.animation || "typewriter");
+  }
+
   function getAnimatedText(line, time) {
+    const animation = getLineAnimation(line);
+    if (animation === "normal" || animation === "scaleReveal") return String(line.text || "");
+
     const cps = normalizeCps(line.charsPerSecond || 24);
     const elapsed = Math.max(0, time - Number(line.start));
     const visibleLength = Math.floor(elapsed * cps);
     return Array.from(line.text || "").slice(0, visibleLength).join("");
+  }
+
+  function easeOutCubic(value) {
+    const t = clampNumber(value, 0, 1);
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  function clearTextShadow(context) {
+    context.shadowBlur = 0;
+    context.shadowOffsetX = 0;
+    context.shadowOffsetY = 0;
+    context.shadowColor = "rgba(0,0,0,0)";
+  }
+
+  function paintBodyGlyphLayer(context, char, x, y, options, layer) {
+    const fontFamily = options.fontFamily || state.settings.font?.family || "\"Noto Sans JP\", sans-serif";
+    context.font = `${options.fontSize}px ${fontFamily}`;
+    context.textBaseline = "top";
+    context.textAlign = "left";
+    context.lineJoin = "round";
+
+    if (layer === "shadow") {
+      const shadow = state.settings.shadow || {};
+      const blur = Number(shadow.blur) || 0;
+      const offsetX = Number(shadow.offsetX) || 0;
+      const offsetY = Number(shadow.offsetY) || 0;
+      if (!blur && !offsetX && !offsetY) return;
+      context.shadowBlur = blur;
+      context.shadowOffsetX = offsetX;
+      context.shadowOffsetY = offsetY;
+      context.shadowColor = shadow.color || "#000000";
+      context.fillStyle = options.color || "#ffffff";
+      context.fillText(char, x, y);
+      clearTextShadow(context);
+      return;
+    }
+
+    clearTextShadow(context);
+    if (layer === "stroke") {
+      if (Number(options.strokeWidth) > 0) {
+        context.lineWidth = Number(options.strokeWidth);
+        context.strokeStyle = options.strokeColor || "#1c3b52";
+        context.strokeText(char, x, y);
+      }
+      return;
+    }
+
+    context.fillStyle = options.color || "#ffffff";
+    context.fillText(char, x, y);
+  }
+
+  function drawScaleRevealBodyText(context, fullText, startX, startY, style, line, time) {
+    const elapsed = Math.max(0, time - Number(line.start));
+    const revealSpeed = normalizeCps(line.charsPerSecond || 24);
+    const minScale = normalizeScaleRevealMin(line.scaleRevealMin || 18) / 100;
+
+    context.save();
+    const bodyFontFamily = style.fontFamily || state.settings.font?.family || "\"Noto Sans JP\", sans-serif";
+    context.font = `${style.fontSize}px ${bodyFontFamily}`;
+    const wrappedLines = splitTextByWidth(context, fullText, Number(style.width) || 1200).slice(0, Number(style.maxLines) || 3);
+    const plans = [];
+    let globalCharIndex = 0;
+
+    wrappedLines.forEach((textLine, lineIndex) => {
+      let cursorX = startX;
+      const y = startY + lineIndex * style.lineHeight;
+      for (const char of Array.from(textLine)) {
+        context.font = `${style.fontSize}px ${bodyFontFamily}`;
+        const width = context.measureText(char).width;
+        const localProgress = elapsed * revealSpeed - globalCharIndex;
+        if (localProgress >= 0) {
+          const revealProgress = easeOutCubic(clampNumber(localProgress, 0, 1));
+          plans.push({
+            char,
+            x: cursorX,
+            y,
+            width,
+            scale: minScale + (1 - minScale) * revealProgress,
+            alpha: revealProgress
+          });
+        }
+        cursorX += width;
+        globalCharIndex += 1;
+      }
+    });
+
+    const drawPlan = (plan, layer) => {
+      if (plan.alpha <= 0) return;
+      const previousAlpha = context.globalAlpha;
+      context.save();
+      context.globalAlpha = previousAlpha * plan.alpha;
+      context.translate(plan.x + plan.width / 2, plan.y + style.fontSize / 2);
+      context.scale(plan.scale, plan.scale);
+      paintBodyGlyphLayer(context, plan.char, -plan.width / 2, -style.fontSize / 2, style, layer);
+      context.restore();
+      context.globalAlpha = previousAlpha;
+    };
+
+    ["shadow", "stroke", "fill"].forEach((layer) => {
+      plans.forEach((plan) => drawPlan(plan, layer));
+    });
+    context.restore();
   }
 
   function renderAt(time, options = {}) {
@@ -636,21 +912,26 @@
     drawStrokedText(ctx, characterName, nameStyle.x, nameStyle.y, nameStyle);
 
     const bodyStyle = state.settings.bodyText;
-    ctx.save();
-    const bodyFontFamily = bodyStyle.fontFamily || state.settings.font?.family || "\"Noto Sans JP\", sans-serif";
-    ctx.font = `${bodyStyle.fontSize}px ${bodyFontFamily}`;
-    const wrappedLines = splitTextByWidth(ctx, visibleText, Number(bodyStyle.width) || 1200).slice(0, Number(bodyStyle.maxLines) || 3);
-    ctx.restore();
+    const animation = getLineAnimation(activeLine);
+    if (animation === "scaleReveal") {
+      drawScaleRevealBodyText(ctx, String(activeLine.text || ""), bodyStyle.x, bodyStyle.y, bodyStyle, activeLine, currentTime);
+    } else {
+      ctx.save();
+      const bodyFontFamily = bodyStyle.fontFamily || state.settings.font?.family || "\"Noto Sans JP\", sans-serif";
+      ctx.font = `${bodyStyle.fontSize}px ${bodyFontFamily}`;
+      const wrappedLines = splitTextByWidth(ctx, visibleText, Number(bodyStyle.width) || 1200).slice(0, Number(bodyStyle.maxLines) || 3);
+      ctx.restore();
 
-    wrappedLines.forEach((line, index) => {
-      drawStrokedText(
-        ctx,
-        line,
-        bodyStyle.x,
-        bodyStyle.y + index * bodyStyle.lineHeight,
-        bodyStyle
-      );
-    });
+      wrappedLines.forEach((line, index) => {
+        drawStrokedText(
+          ctx,
+          line,
+          bodyStyle.x,
+          bodyStyle.y + index * bodyStyle.lineHeight,
+          bodyStyle
+        );
+      });
+    }
 
     const previewLabel = activeLine._isFormPreview ? "入力中 / " : "";
     activeLineInfo.textContent = `${previewLabel}${characterName}：${activeLine.text}`;
@@ -700,6 +981,8 @@
     if (Number.isFinite(start) && start >= 0) line.start = start;
     if (Number.isFinite(end) && end > (Number.isFinite(start) ? start : Number(line.start))) line.end = end;
     line.charsPerSecond = normalizeCps(lineCpsInput.value);
+    line.animation = normalizeAnimation(lineAnimationSelect?.value);
+    line.scaleRevealMin = normalizeScaleRevealMin(lineScaleRevealMinInput?.value || 18);
     return true;
   }
 
@@ -856,6 +1139,8 @@
       start,
       end,
       charsPerSecond: normalizeCps(lineCpsInput.value),
+      animation: normalizeAnimation(lineAnimationSelect?.value),
+      scaleRevealMin: normalizeScaleRevealMin(lineScaleRevealMinInput?.value || 18),
       speechButtonId: button.id
     };
 
@@ -1039,7 +1324,8 @@
 
       const meta = document.createElement("div");
       meta.className = "line-meta";
-      meta.innerHTML = `<span>${escapeHtml(character?.name || "未設定")}</span><span>${toFixedSafe(line.start)}s - ${toFixedSafe(line.end)}s / ${line.charsPerSecond}cps</span>`;
+      const animationLabel = getLineAnimation(line) === "scaleReveal" ? "拡大" : getLineAnimation(line) === "normal" ? "通常" : "タイプ";
+      meta.innerHTML = `<span>${escapeHtml(character?.name || "未設定")}</span><span>${toFixedSafe(line.start)}s - ${toFixedSafe(line.end)}s / ${line.charsPerSecond}cps / ${animationLabel}</span>`;
 
       const text = document.createElement("div");
       text.className = "line-text";
@@ -1091,6 +1377,8 @@
     lineStartInput.value = toFixedSafe(line.start);
     lineEndInput.value = toFixedSafe(line.end);
     syncCpsControls(line.charsPerSecond || 24);
+    syncAnimationControls(line.animation || "typewriter");
+    syncScaleRevealMinControls(line.scaleRevealMin || 18);
     addOrUpdateLineBtn.textContent = "セリフ更新";
     const previewOffset = Math.min(1, Math.max(0.05, (Number(line.end) || 0) - (Number(line.start) || 0)) * 0.35);
     syncPreviewInputs(Math.min(Number(line.end) || Number(line.start) || 0, (Number(line.start) || 0) + previewOffset));
@@ -1104,6 +1392,8 @@
     lineStartInput.value = toFixedSafe(Number(lineEndInput.value) || 0);
     lineEndInput.value = toFixedSafe((Number(lineStartInput.value) || 0) + 3);
     syncCpsControls(24);
+    syncAnimationControls("typewriter");
+    syncScaleRevealMinControls(18);
     addOrUpdateLineBtn.textContent = "セリフ追加";
     renderLineList();
   }
@@ -1114,6 +1404,8 @@
     const start = Number(lineStartInput.value);
     const end = Number(lineEndInput.value);
     const charsPerSecond = normalizeCps(lineCpsInput.value);
+    const animation = normalizeAnimation(lineAnimationSelect?.value);
+    const scaleRevealMin = normalizeScaleRevealMin(lineScaleRevealMinInput?.value || 18);
 
     if (!characterId) throw new Error("キャラクターを登録してください。");
     if (!text) throw new Error("セリフを入力してください。");
@@ -1121,7 +1413,7 @@
       throw new Error("開始秒と終了秒を正しく入力してください。");
     }
 
-    return { characterId, text, start, end, charsPerSecond };
+    return { characterId, text, start, end, charsPerSecond, animation, scaleRevealMin };
   }
 
   function addOrUpdateLine() {
@@ -1210,7 +1502,8 @@
       } else if (definition.type === "select") {
         valueInput.className = "setting-value-label";
 
-        for (const optionData of definition.options || []) {
+        const selectOptions = definition.path.endsWith("fontFamily") ? getFontOptions() : (definition.options || []);
+        for (const optionData of selectOptions) {
           const option = document.createElement("option");
           option.value = optionData.value;
           option.textContent = optionData.label;
@@ -1226,7 +1519,8 @@
       mainInput.value = value;
 
       if (definition.type === "select") {
-        const selected = (definition.options || []).find((option) => option.value === value);
+        const selectOptions = definition.path.endsWith("fontFamily") ? getFontOptions() : (definition.options || []);
+        const selected = selectOptions.find((option) => option.value === value);
         valueInput.textContent = selected?.label || "選択中";
       } else {
         valueInput.value = value;
@@ -1243,7 +1537,8 @@
         if (source !== mainInput) mainInput.value = nextValue;
 
         if (definition.type === "select") {
-          const selected = (definition.options || []).find((option) => option.value === nextValue);
+          const selectOptions = definition.path.endsWith("fontFamily") ? getFontOptions() : (definition.options || []);
+          const selected = selectOptions.find((option) => option.value === nextValue);
           valueInput.textContent = selected?.label || "選択中";
         } else if (source !== valueInput) {
           valueInput.value = nextValue;
@@ -1286,6 +1581,14 @@
         height: CANVAS_HEIGHT
       },
       characters: state.characters,
+      customFonts: (state.customFonts || []).map((font) => ({
+        id: font.id,
+        label: font.label,
+        family: font.family,
+        fileName: font.fileName,
+        mimeType: font.mimeType,
+        dataUrl: font.dataUrl
+      })),
       speechButtons: state.speechButtons.map((button) => ({ ...button })),
       scenes,
       currentSceneId: state.currentSceneId,
@@ -1312,6 +1615,12 @@
     state.characters = Array.isArray(data.characters) && data.characters.length
       ? data.characters
       : [{ id: "char_default", name: "キャラクター" }];
+    state.customFonts = Array.isArray(data.customFonts)
+      ? data.customFonts
+          .filter((font) => font && font.family && font.dataUrl)
+          .map((font) => ({ ...font, id: font.id || uniqueId("font"), _loaded: false }))
+      : [];
+    await hydrateCustomFonts();
     state.speechButtons = Array.isArray(data.speechButtons)
       ? data.speechButtons
           .filter((button) => button && button.characterId && button.text)
@@ -1359,6 +1668,7 @@
     renderCharacterList();
     renderSpeechButtonGroups();
     renderLineList();
+    renderCustomFontList();
     renderSettingsPanel();
     updatePreviewMax();
     renderAt(currentPreviewTime());
@@ -1417,6 +1727,7 @@
 
     if (document.fonts?.ready) {
       exportProgress.textContent = "フォント読み込み確認中...";
+      await hydrateCustomFonts();
       await document.fonts.ready;
     }
 
@@ -1573,6 +1884,11 @@
       renderAt(currentPreviewTime());
     });
 
+    fontInput?.addEventListener("change", async () => {
+      await importCustomFonts(fontInput.files);
+      fontInput.value = "";
+    });
+
     addCharacterBtn.addEventListener("click", () => {
       const name = characterNameInput.value.trim();
       if (!name) return;
@@ -1634,6 +1950,21 @@
 
     lineCpsRange.addEventListener("input", () => {
       syncCpsControls(lineCpsRange.value, lineCpsRange);
+      livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
+    });
+
+    lineAnimationSelect?.addEventListener("change", () => {
+      syncAnimationControls(lineAnimationSelect.value);
+      livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
+    });
+
+    lineScaleRevealMinInput?.addEventListener("input", () => {
+      syncScaleRevealMinControls(lineScaleRevealMinInput.value, lineScaleRevealMinInput);
+      livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
+    });
+
+    lineScaleRevealMinRange?.addEventListener("input", () => {
+      syncScaleRevealMinControls(lineScaleRevealMinRange.value, lineScaleRevealMinRange);
       livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
     });
 
@@ -1724,12 +2055,15 @@
     renderCharacterList();
     renderSpeechButtonGroups();
     renderLineList();
+    renderCustomFontList();
     renderSettingsPanel();
     bindEvents();
     const currentScene = getCurrentScene();
     state.lines = (currentScene?.lines || []).map(cloneLine);
     setAudioFromDataUrl(currentScene?.audioDataUrl || null, currentScene?.audioFileName || "", currentScene?.audioMimeType || "");
     syncCpsControls(lineCpsInput.value || 24);
+    syncAnimationControls(lineAnimationSelect?.value || "typewriter");
+    syncScaleRevealMinControls(lineScaleRevealMinInput?.value || 18);
     renderAt(0);
   }
 

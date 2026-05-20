@@ -72,6 +72,18 @@
       </details>
 
       <details open>
+        <summary>フォント登録</summary>
+        <div class="control-stack custom-font-stack">
+          <label class="field">
+            <span>任意フォント読み込み</span>
+            <input id="fontInput" type="file" accept=".ttf,.otf,.woff,.woff2,font/*" multiple />
+          </label>
+          <p id="fontStatus" class="hint">ttf / otf / woff / woff2 を読み込むと、表示設定の「名前フォント」「本文フォント」から選べます。JSON保存・キャッシュ保存にも含まれます。</p>
+          <div id="customFontList" class="custom-font-list"></div>
+        </div>
+      </details>
+
+      <details open>
         <summary>キャラクター登録</summary>
         <div class="control-stack">
           <div class="inline-form">
@@ -205,6 +217,23 @@
                     </div>
                   </label>
                 </div>
+                <div class="quick-animation-grid">
+                  <label class="field">
+                    <span>本文アニメーション</span>
+                    <select id="lineAnimationSelect">
+                      <option value="typewriter" selected>タイプライター表示</option>
+                      <option value="scaleReveal">拡大しながら表示</option>
+                      <option value="normal">通常表示</option>
+                    </select>
+                  </label>
+                  <label class="field cps-field scale-reveal-field">
+                    <span>拡大開始サイズ <output id="lineScaleRevealMinOutput">18%</output></span>
+                    <div class="cps-control-row">
+                      <input id="lineScaleRevealMinInput" class="cps-number-input" type="number" min="1" max="100" step="1" value="18" aria-label="拡大開始サイズ 数値入力" />
+                      <input id="lineScaleRevealMinRange" class="cps-range-input" type="range" min="1" max="100" step="1" value="18" aria-label="拡大開始サイズスライダー" />
+                    </div>
+                  </label>
+                </div>
                 <div class="button-row quick-time-buttons">
                   <button id="setStartFromAudioBtn" type="button">現在時刻を開始へ</button>
                   <button id="setEndFromAudioBtn" type="button">現在時刻を終了へ</button>
@@ -244,7 +273,7 @@
             <li>「シーン管理」でシーンを作成または選択します。</li>
             <li>「素材」から音声ファイルとメッセージウィンドウ画像を読み込みます。</li>
             <li>「キャラクター登録」で名前を追加します。</li>
-            <li>右側のプレビュー下にある入力パネルで、名前・セリフ・開始秒・終了秒・文字送り速度を設定して「セリフ追加」を押します。</li>
+            <li>右側のプレビュー下にある入力パネルで、名前・セリフ・開始秒・終了秒・文字送り速度・本文アニメーションを設定して「セリフ追加」を押します。</li>
             <li>音声プレビューで再生位置を確認しながら、必要に応じてセリフを編集します。</li>
             <li>「書き出し」から現在選択中のシーンを透過PNG連番ZIPとして書き出します。</li>
           </ol>
@@ -276,14 +305,21 @@
             <li>名前選択：登録済みキャラクターから選びます。最後に選んだ名前は維持されます。</li>
             <li>セリフ入力：表示したい本文を入力します。</li>
             <li>開始秒・終了秒：セリフを表示する時間です。</li>
-            <li>文字送り/秒：本文アニメーション速度です。数値入力またはスライダーでリアルタイム確認できます。</li>
+            <li>本文アニメーション：通常表示、タイプライター表示、拡大しながら表示から選べます。</li>
+            <li>文字送り/秒：タイプライターと拡大表示の出現速度です。数値入力またはスライダーでリアルタイム確認できます。</li>
+            <li>拡大開始サイズ：「拡大しながら表示」の開始時の文字サイズです。</li>
             <li>現在時刻を開始へ／終了へ：音声プレイヤーの現在位置を入力欄へ反映します。</li>
           </ul>
         </section>
 
         <section>
+          <h3>任意フォント</h3>
+          <p>左側の「フォント登録」から ttf / otf / woff / woff2 を読み込めます。読み込んだフォントは「表示設定」の名前フォント・本文フォントに追加され、名前と本文へ別々に割り当てできます。JSON保存・キャッシュ保存にも任意フォントが含まれます。</p>
+        </section>
+
+        <section>
           <h3>表示設定</h3>
-          <p>左側の「表示設定」から、メッセージウィンドウ画像の位置・サイズ、名前文字、本文文字、折り返し幅、行間、最大行数、文字色、フチ、影、フォントを調整できます。プレビュー上の薄いミント背景は確認用で、書き出しPNGには入りません。</p>
+          <p>左側の「表示設定」から、メッセージウィンドウ画像の位置・サイズ、名前文字、本文文字、折り返し幅、行間、最大行数、文字色、フチ、影、フォントを調整できます。「フォント登録」から任意フォントを読み込むと、名前フォント・本文フォントで個別に選べます。プレビュー上の薄いミント背景は確認用で、書き出しPNGには入りません。</p>
         </section>
 
         <section>
