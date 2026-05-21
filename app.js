@@ -49,6 +49,9 @@
 
   const audioInput = $("#audioInput");
   const audioPlayer = $("#audioPlayer");
+  const previewVideoPlayer = $("#previewVideoPlayer");
+  const videoControlPanel = $("#videoControlPanel");
+  const mediaPlayPauseBtn = $("#mediaPlayPauseBtn");
   const audioFileInfo = $("#audioFileInfo");
   const clearAudioBtn = $("#clearAudioBtn");
   const windowImageInput = $("#windowImageInput");
@@ -172,6 +175,80 @@
     customFonts: [],
     settings: defaultSettings()
   };
+
+
+  let previewRafId = null;
+
+  function isVideoMediaFile(mimeType = "", fileName = "") {
+    return /^video\//i.test(mimeType || "") || /\.(mp4|m4v|mov)$/i.test(fileName || "");
+  }
+
+  function hasPreviewVideo() {
+    return Boolean(state.audioDataUrl && isVideoMediaFile(state.audioMimeType, state.audioFileName));
+  }
+
+  function activeMediaPlayer() {
+    return hasPreviewVideo() ? previewVideoPlayer : audioPlayer;
+  }
+
+  function syncMediaVisibility() {
+    const videoMode = hasPreviewVideo();
+    previewVideoPlayer?.classList.toggle("hidden", !videoMode);
+    videoControlPanel?.classList.toggle("hidden", !videoMode);
+    audioPlayer?.classList.toggle("hidden", videoMode);
+    updateMediaPlayPauseButton();
+  }
+
+  function syncActiveMediaTime(time) {
+    const media = activeMediaPlayer();
+    if (!media || !state.audioDataUrl) return;
+    const nextTime = Number(time);
+    if (!Number.isFinite(nextTime) || nextTime < 0) return;
+    try {
+      if (Number.isFinite(media.duration) && media.duration > 0 && nextTime > media.duration) return;
+      if (Math.abs((media.currentTime || 0) - nextTime) > 0.03) {
+        media.currentTime = nextTime;
+      }
+    } catch (_) {
+      // メタデータ読み込み前のseek失敗は無視します。
+    }
+  }
+
+  function stopPreviewLoop() {
+    if (previewRafId) {
+      cancelAnimationFrame(previewRafId);
+      previewRafId = null;
+    }
+  }
+
+  function updateMediaPlayPauseButton() {
+    if (!mediaPlayPauseBtn) return;
+    const media = activeMediaPlayer();
+    if (!hasPreviewVideo()) {
+      mediaPlayPauseBtn.textContent = "MP4再生 / 停止";
+      mediaPlayPauseBtn.disabled = true;
+      return;
+    }
+    mediaPlayPauseBtn.disabled = !state.audioDataUrl;
+    mediaPlayPauseBtn.textContent = media && !media.paused ? "MP4停止" : "MP4再生";
+  }
+
+
+  function startPreviewLoop() {
+    stopPreviewLoop();
+    const tick = () => {
+      const media = activeMediaPlayer();
+      if (!media || media.paused || media.ended) {
+        previewRafId = null;
+        return;
+      }
+      const time = media.currentTime || 0;
+      syncPreviewInputs(time);
+      renderAt(time);
+      previewRafId = requestAnimationFrame(tick);
+    };
+    previewRafId = requestAnimationFrame(tick);
+  }
 
   const settingDefinitions = [
     { label: "ウィンドウX", path: "window.x", type: "range", min: 0, max: CANVAS_WIDTH, step: 1 },
@@ -541,7 +618,8 @@
 
     if (sceneStatus) {
       const lineCount = state.lines.length;
-      const audioText = state.audioDataUrl ? `音声あり：${state.audioFileName || "音声ファイル"}` : "音声なし";
+      const materialLabel = hasPreviewVideo() ? "MP4あり" : "音声あり";
+      const audioText = state.audioDataUrl ? `${materialLabel}：${state.audioFileName || "素材ファイル"}` : "音声 / MP4なし";
       sceneStatus.textContent = `現在：${current?.name || "シーン"} / セリフ${lineCount}件 / ${audioText}`;
     }
   }
@@ -622,17 +700,30 @@
       state.audioObjectUrl = null;
     }
 
+    stopPreviewLoop();
+    audioPlayer.pause();
+    previewVideoPlayer?.pause();
+    audioPlayer.removeAttribute("src");
+    audioPlayer.load();
+    previewVideoPlayer?.removeAttribute("src");
+    previewVideoPlayer?.load();
+
     if (state.audioDataUrl) {
-      audioPlayer.src = state.audioDataUrl;
-      audioPlayer.load();
-      audioFileInfo.textContent = `保存済み音声：${state.audioFileName || "名称未設定"}`;
+      if (hasPreviewVideo()) {
+        previewVideoPlayer.src = state.audioDataUrl;
+        previewVideoPlayer.load();
+        audioFileInfo.textContent = `保存済みMP4：${state.audioFileName || "名称未設定"}`;
+      } else {
+        audioPlayer.src = state.audioDataUrl;
+        audioPlayer.load();
+        audioFileInfo.textContent = `保存済み音声：${state.audioFileName || "名称未設定"}`;
+      }
     } else {
-      audioPlayer.removeAttribute("src");
-      audioPlayer.load();
-      audioFileInfo.textContent = "保存済み音声なし";
+      audioFileInfo.textContent = "保存済み素材なし";
       previewTimeRange.max = Math.max(30, Number(exportEndInput.value) || 0);
     }
 
+    syncMediaVisibility();
     populateSceneSelect();
   }
 
@@ -938,7 +1029,8 @@
   }
 
   function currentPreviewTime() {
-    if (audioPlayer.src && !audioPlayer.paused) return audioPlayer.currentTime;
+    const media = activeMediaPlayer();
+    if (media?.src && !media.paused) return media.currentTime || 0;
     return Number(previewTimeInput.value) || 0;
   }
 
@@ -996,8 +1088,9 @@
 
   function updatePreviewMax() {
     const maxLineEnd = state.lines.reduce((max, line) => Math.max(max, Number(line.end) || 0), 0);
-    const audioDuration = Number.isFinite(audioPlayer.duration) ? audioPlayer.duration : 0;
-    const max = Math.max(30, maxLineEnd, audioDuration, Number(exportEndInput.value) || 0);
+    const media = activeMediaPlayer();
+    const mediaDuration = Number.isFinite(media?.duration) ? media.duration : 0;
+    const max = Math.max(30, maxLineEnd, mediaDuration, Number(exportEndInput.value) || 0);
     previewTimeRange.max = toFixedSafe(max, 2);
   }
 
@@ -1124,7 +1217,8 @@
       return;
     }
 
-    const now = audioPlayer.src ? audioPlayer.currentTime : Number(previewTimeInput.value) || 0;
+    const media = activeMediaPlayer();
+    const now = media?.src ? media.currentTime : Number(previewTimeInput.value) || 0;
     const currentStart = Number(lineStartInput.value);
     const currentEnd = Number(lineEndInput.value);
     const duration = Number.isFinite(currentStart) && Number.isFinite(currentEnd) && currentEnd > currentStart
@@ -1833,16 +1927,16 @@
       if (!file) return;
 
       try {
-        audioFileInfo.textContent = "音声を保存用データへ変換中...";
+        audioFileInfo.textContent = "音声 / MP4を保存用データへ変換中...";
         const dataUrl = await readFileAsDataUrl(file);
-        setAudioFromDataUrl(dataUrl, file.name, file.type || "audio/*");
+        setAudioFromDataUrl(dataUrl, file.name, file.type || (isVideoMediaFile("", file.name) ? "video/mp4" : "audio/*"));
         populateSceneSelect();
       } catch (error) {
         console.error(error);
-        alert("音声ファイルの読み込みに失敗しました。");
+        alert("音声 / MP4ファイルの読み込みに失敗しました。");
         audioFileInfo.textContent = state.audioDataUrl
           ? `保存済み音声：${state.audioFileName || "名称未設定"}`
-          : "保存済み音声なし";
+          : "保存済み素材なし";
       }
     });
 
@@ -1854,19 +1948,53 @@
       renderAt(currentPreviewTime());
     });
 
-    audioPlayer.addEventListener("loadedmetadata", () => {
-      updatePreviewMax();
-      exportEndInput.value = toFixedSafe(audioPlayer.duration || Number(exportEndInput.value) || 3);
+    mediaPlayPauseBtn?.addEventListener("click", async () => {
+      const media = activeMediaPlayer();
+      if (!media || !state.audioDataUrl) return;
+      try {
+        if (media.paused || media.ended) {
+          await media.play();
+        } else {
+          media.pause();
+        }
+        updateMediaPlayPauseButton();
+      } catch (error) {
+        console.error(error);
+        alert("MP4を再生できませんでした。ブラウザの制限により、もう一度ボタンを押すと再生できる場合があります。");
+      }
     });
 
-    audioPlayer.addEventListener("timeupdate", () => {
-      syncPreviewInputs(audioPlayer.currentTime);
-      renderAt(audioPlayer.currentTime);
-    });
+    [audioPlayer, previewVideoPlayer].forEach((media) => {
+      media?.addEventListener("loadedmetadata", () => {
+        updatePreviewMax();
+        exportEndInput.value = toFixedSafe(media.duration || Number(exportEndInput.value) || 3);
+        renderAt(media.currentTime || 0);
+      });
 
-    audioPlayer.addEventListener("seeked", () => {
-      syncPreviewInputs(audioPlayer.currentTime);
-      renderAt(audioPlayer.currentTime);
+      media?.addEventListener("play", () => {
+        updateMediaPlayPauseButton();
+        startPreviewLoop();
+      });
+
+      media?.addEventListener("pause", () => {
+        updateMediaPlayPauseButton();
+        stopPreviewLoop();
+        syncPreviewInputs(media.currentTime || 0);
+        renderAt(media.currentTime || 0);
+      });
+
+      media?.addEventListener("timeupdate", () => {
+        syncPreviewInputs(media.currentTime || 0);
+        renderAt(media.currentTime || 0);
+      });
+
+      media?.addEventListener("seeked", () => {
+        updateMediaPlayPauseButton();
+        syncPreviewInputs(media.currentTime || 0);
+        renderAt(media.currentTime || 0);
+      });
+
+      media?.addEventListener("ended", updateMediaPlayPauseButton);
     });
 
     windowImageInput.addEventListener("change", async () => {
@@ -1969,13 +2097,15 @@
     });
 
     setStartFromAudioBtn.addEventListener("click", () => {
-      const value = audioPlayer.src ? audioPlayer.currentTime : Number(previewTimeInput.value) || 0;
+      const media = activeMediaPlayer();
+      const value = media?.src ? media.currentTime : Number(previewTimeInput.value) || 0;
       lineStartInput.value = toFixedSafe(value);
       livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
     });
 
     setEndFromAudioBtn.addEventListener("click", () => {
-      const value = audioPlayer.src ? audioPlayer.currentTime : Number(previewTimeInput.value) || 0;
+      const media = activeMediaPlayer();
+      const value = media?.src ? media.currentTime : Number(previewTimeInput.value) || 0;
       lineEndInput.value = toFixedSafe(value);
       livePreviewLineForm({ updateList: Boolean(state.selectedLineId) });
     });
@@ -1985,12 +2115,16 @@
 
     previewTimeInput.addEventListener("input", () => {
       previewTimeRange.value = previewTimeInput.value;
-      renderAt(Number(previewTimeInput.value) || 0);
+      const time = Number(previewTimeInput.value) || 0;
+      syncActiveMediaTime(time);
+      renderAt(time);
     });
 
     previewTimeRange.addEventListener("input", () => {
       previewTimeInput.value = previewTimeRange.value;
-      renderAt(Number(previewTimeRange.value) || 0);
+      const time = Number(previewTimeRange.value) || 0;
+      syncActiveMediaTime(time);
+      renderAt(time);
     });
 
     renderPreviewBtn.addEventListener("click", () => renderAt(Number(previewTimeInput.value) || 0));
@@ -2061,6 +2195,7 @@
     const currentScene = getCurrentScene();
     state.lines = (currentScene?.lines || []).map(cloneLine);
     setAudioFromDataUrl(currentScene?.audioDataUrl || null, currentScene?.audioFileName || "", currentScene?.audioMimeType || "");
+    syncMediaVisibility();
     syncCpsControls(lineCpsInput.value || 24);
     syncAnimationControls(lineAnimationSelect?.value || "typewriter");
     syncScaleRevealMinControls(lineScaleRevealMinInput?.value || 18);

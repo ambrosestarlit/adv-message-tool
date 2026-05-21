@@ -53,12 +53,12 @@
         <summary>素材</summary>
         <div class="control-stack">
           <label class="field">
-            <span>音声ファイル</span>
-            <input id="audioInput" type="file" accept="audio/*" />
+            <span>音声 / MP4ファイル</span>
+            <input id="audioInput" type="file" accept="audio/*,video/mp4,video/x-m4v,video/quicktime,.mp4,.m4v,.mov" />
           </label>
           <div class="asset-status-row">
             <div id="audioFileInfo" class="asset-status">保存済み音声なし</div>
-            <button id="clearAudioBtn" type="button">音声を解除</button>
+            <button id="clearAudioBtn" type="button">素材を解除</button>
           </div>
 
           <label class="field">
@@ -118,19 +118,6 @@
         </div>
       </details>
 
-      <details open>
-        <summary>プレビュー</summary>
-        <div class="control-stack">
-          <label class="field">
-            <span>プレビュー秒</span>
-            <input id="previewTimeInput" type="number" min="0" step="0.01" value="0" />
-          </label>
-          <input id="previewTimeRange" type="range" min="0" max="30" step="0.01" value="0" />
-          <div class="button-row">
-            <button id="renderPreviewBtn" type="button">プレビュー更新</button>
-          </div>
-        </div>
-      </details>
 
       <details open>
         <summary>表示設定</summary>
@@ -175,14 +162,31 @@
         <div id="activeLineInfo" class="active-line-info">表示中のセリフなし</div>
       </div>
       <div class="canvas-wrap">
-        <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+        <div class="preview-composite" aria-label="プレビュー合成表示">
+          <video id="previewVideoPlayer" class="preview-video-player hidden" playsinline preload="metadata"></video>
+          <canvas id="previewCanvas" width="1920" height="1080"></canvas>
+        </div>
 
         <div class="preview-audio-panel" aria-label="音声プレビュー">
           <div class="preview-audio-head">
-            <strong>音声プレビュー</strong>
-            <span>読み込んだ音声の再生位置に合わせて表示確認</span>
+            <strong>音声 / MP4プレビュー</strong>
+            <span>MP4は文字の下敷きとしてプレビューに表示。書き出しには含まれません</span>
           </div>
-          <audio id="audioPlayer" controls></audio>
+          <div class="preview-media-control-row">
+            <audio id="audioPlayer" controls></audio>
+            <div id="videoControlPanel" class="video-control-panel hidden">
+              <button id="mediaPlayPauseBtn" type="button">MP4再生 / 停止</button>
+            </div>
+            <div class="preview-seek-panel" aria-label="プレビュー秒調整">
+              <label class="preview-time-field">
+                <span>プレビュー秒</span>
+                <input id="previewTimeInput" type="number" min="0" step="0.01" value="0" />
+              </label>
+              <input id="previewTimeRange" type="range" min="0" max="30" step="0.01" value="0" />
+              <button id="renderPreviewBtn" type="button">更新</button>
+            </div>
+          </div>
+          <p class="preview-media-hint">音声 / MP4の再生位置とテキストプレビューは同期します。MP4映像は書き出しには含まれません。</p>
         </div>
 
         <div class="quick-line-panel" aria-label="セリフ入力">
@@ -264,17 +268,17 @@
       <div class="manual-modal-body">
         <section>
           <h3>このツールでできること</h3>
-          <p>音声に合わせて、ADVノベルゲーム風のメッセージウィンドウ・キャラクター名・セリフ本文を表示し、背景透過の連番PNGをZIPで書き出せます。キャンバスサイズは1920×1080固定です。</p>
+          <p>音声または音声付きMP4に合わせて、ADVノベルゲーム風のメッセージウィンドウ・キャラクター名・セリフ本文を表示し、背景透過の連番PNGをZIPで書き出せます。MP4はプレビュー上で文字入れの下敷きとして表示されますが、書き出しPNGには含まれません。キャンバスサイズは1920×1080固定です。</p>
         </section>
 
         <section>
           <h3>基本の流れ</h3>
           <ol>
             <li>「シーン管理」でシーンを作成または選択します。</li>
-            <li>「素材」から音声ファイルとメッセージウィンドウ画像を読み込みます。</li>
+            <li>「素材」から音声ファイルまたは音声付きMP4、メッセージウィンドウ画像を読み込みます。</li>
             <li>「キャラクター登録」で名前を追加します。</li>
             <li>右側のプレビュー下にある入力パネルで、名前・セリフ・開始秒・終了秒・文字送り速度・本文アニメーションを設定して「セリフ追加」を押します。</li>
-            <li>音声プレビューで再生位置を確認しながら、必要に応じてセリフを編集します。</li>
+            <li>音声 / MP4プレビューで再生位置を確認しながら、必要に応じてセリフを編集します。MP4の場合は映像がキャンバスの下敷きとして同期表示されます。</li>
             <li>「書き出し」から現在選択中のシーンを透過PNG連番ZIPとして書き出します。</li>
           </ol>
         </section>
@@ -308,7 +312,7 @@
             <li>本文アニメーション：通常表示、タイプライター表示、拡大しながら表示から選べます。</li>
             <li>文字送り/秒：タイプライターと拡大表示の出現速度です。数値入力またはスライダーでリアルタイム確認できます。</li>
             <li>拡大開始サイズ：「拡大しながら表示」の開始時の文字サイズです。</li>
-            <li>現在時刻を開始へ／終了へ：音声プレイヤーの現在位置を入力欄へ反映します。</li>
+            <li>現在時刻を開始へ／終了へ：音声またはMP4プレイヤーの現在位置を入力欄へ反映します。</li>
           </ul>
         </section>
 
@@ -330,12 +334,12 @@
             <li>キャッシュ保存：ブラウザ内に一時保存します。</li>
             <li>キャッシュ復元：ブラウザ内の保存データを復元します。</li>
           </ul>
-          <p>音声も保存対象です。長い音声や複数シーン分の音声を含めると、JSONやキャッシュの容量が大きくなります。</p>
+          <p>音声・MP4も保存対象です。長い音声やMP4、複数シーン分の素材を含めると、JSONやキャッシュの容量が大きくなります。</p>
         </section>
 
         <section>
           <h3>書き出し</h3>
-          <p>書き出しは現在選択中のシーンが対象です。FPS、開始秒、終了秒、ファイル名接頭辞を指定し、「透過PNG連番ZIPを書き出し」を押してください。</p>
+          <p>書き出しは現在選択中のシーンが対象です。FPS、開始秒、終了秒、ファイル名接頭辞を指定し、「透過PNG連番ZIPを書き出し」を押してください。MP4映像は確認用の下敷きなので、PNGには含まれません。</p>
           <p>ZIP書き出しにはJSZip CDNを使用しているため、インターネット接続が必要です。</p>
         </section>
       </div>
