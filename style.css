@@ -1597,3 +1597,34 @@ body.modal-open {
     grid-template-columns: auto minmax(0, 1fr);
   }
 }
+
+.header-language-field {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.45rem 0.35rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.header-language-field select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  padding: 0.38rem 0.55rem;
+  min-width: 7.8rem;
+}
+
+body[data-ui-lang="ko"] {
+  font-family: "Noto Sans KR", "Malgun Gothic", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+}
+
+body[data-ui-lang="en"] {
+  font-family: "IBM Plex Sans JP", "Noto Sans JP", system-ui, sans-serif;
+}

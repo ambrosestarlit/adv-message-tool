@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDMincho:wght@400;700&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho:wght@400;700&family=Dela+Gothic+One&family=DotGothic16&family=Hina+Mincho&family=IBM+Plex+Sans+JP:wght@400;500;700&family=Klee+One:wght@400;600&family=Kiwi+Maru:wght@400;500&family=Kosugi&family=Kosugi+Maru&family=M+PLUS+1:wght@400;500;700&family=M+PLUS+1p:wght@400;500;700&family=M+PLUS+2:wght@400;500;700&family=M+PLUS+Rounded+1c:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;600;700&family=Rampart+One&family=Reggae+One&family=Sawarabi+Gothic&family=Sawarabi+Mincho&family=Shippori+Mincho:wght@400;600;700&family=Stick&family=Yomogi&family=Yuji+Boku&family=Yuji+Mai&family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&family=Zen+Old+Mincho:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -16,9 +17,17 @@
       <p>透過メッセージウィンドウ＋テキストアニメーション連番PNG生成</p>
     </div>
     <div class="header-actions">
+      <label class="header-language-field">
+        <span id="uiLanguageLabel">UI Language</span>
+        <select id="languageSelect" aria-label="UI Language">
+          <option value="ja">日本語</option>
+          <option value="en">English</option>
+          <option value="ko">한국어</option>
+        </select>
+      </label>
       <button id="saveJsonBtn" type="button">JSON保存</button>
       <label class="file-button">
-        JSON読込
+        <span id="loadJsonLabelText">JSON読込</span>
         <input id="loadJsonInput" type="file" accept="application/json,.json" />
       </label>
       <button id="saveCacheBtn" type="button">キャッシュ保存</button>
@@ -99,6 +108,14 @@
       <details open>
         <summary>台詞ボタン登録</summary>
         <div class="control-stack speech-bank-stack">
+          <label class="field">
+            <span id="inputLanguageLabel">入力テキスト言語</span>
+            <select id="inputLanguageSelect" aria-label="Input Text Language">
+              <option value="ja">日本語</option>
+              <option value="en">English</option>
+              <option value="ko">한국어</option>
+            </select>
+          </label>
           <label class="field">
             <span>台詞txt読み込み</span>
             <input id="speechTextInput" type="file" accept=".txt,text/plain" />
